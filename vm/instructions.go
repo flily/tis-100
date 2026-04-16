@@ -1,13 +1,15 @@
 package vm
 
 import (
+	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 type (
-	OpCode     int
-	OprandType int
+	Opcode     int
+	OprandType uint
 	Register   int
 	Label      string
 	Literal    int
@@ -15,12 +17,13 @@ type (
 
 type Oprand interface {
 	OprandType() OprandType
+	Equal(o Oprand) bool
 }
 
 const (
-	OpEmpty   OpCode = -2 // Only used internally for empty lines, not a real instruction
-	OpLabel   OpCode = -1 // Only used internally for labels, not a real instruction
-	OpInvalid OpCode = iota
+	OpEmpty   Opcode = -2 // Only used internally for empty lines, not a real instruction
+	OpLabel   Opcode = -1 // Only used internally for labels, not a real instruction
+	OpInvalid Opcode = iota
 	OpNOP
 	OpMOV
 	OpSWP
@@ -35,9 +38,9 @@ const (
 	OpJLZ
 	OpJRO
 
-	OprandRegister OprandType = iota
-	OprandLabel
-	OprandLiteral
+	OprandRegister OprandType = 1
+	OprandLabel    OprandType = 2
+	OprandLiteral  OprandType = 4
 
 	RegisterInvalid Register = iota
 	RegisterAcc
@@ -57,7 +60,7 @@ const (
 )
 
 var (
-	opCodeNames = map[OpCode]string{
+	opCodeNames = map[Opcode]string{
 		OpNOP: "NOP",
 		OpMOV: "MOV",
 		OpSWP: "SWP",
@@ -72,6 +75,18 @@ var (
 		OpJLZ: "JLZ",
 		OpJRO: "JRO",
 	}
+	opcodeAcceptOprands = map[Opcode][]OprandType{
+		OpMOV: {OprandRegister | OprandLiteral, OprandRegister | OprandLabel},
+		OpADD: {OprandRegister | OprandLiteral},
+		OpSUB: {OprandRegister | OprandLiteral},
+		OpJMP: {OprandLabel},
+		OpJEZ: {OprandLabel},
+		OpJNZ: {OprandLabel},
+		OpJGZ: {OprandLabel},
+		OpJLZ: {OprandLabel},
+		OpJRO: {OprandRegister | OprandLiteral},
+	}
+
 	registerNames = map[Register]string{
 		RegisterAcc:   "ACC",
 		RegisterBak:   "BAK",
@@ -83,11 +98,15 @@ var (
 		RegisterAny:   "ANY",
 	}
 
-	opCodeValues   = map[string]OpCode{}
+	opCodeValues   = map[string]Opcode{}
 	registerValues = map[string]Register{}
 )
 
-func NewOpCode(name string) OpCode {
+func (t OprandType) Include(other OprandType) bool {
+	return (t & other) == other
+}
+
+func NewOpcode(name string) Opcode {
 	if code, ok := opCodeValues[name]; ok {
 		return code
 	}
@@ -95,12 +114,20 @@ func NewOpCode(name string) OpCode {
 	return InvalidOpCode
 }
 
-func (c OpCode) String() string {
+func (c Opcode) String() string {
 	if name, ok := opCodeNames[c]; ok {
 		return name
 	}
 
 	return InvalidOpcodeName
+}
+
+func (c Opcode) AcceptOprands() []OprandType {
+	if oprands, ok := opcodeAcceptOprands[c]; ok {
+		return slices.Clone(oprands)
+	}
+
+	return nil
 }
 
 func NewRegister(name string) Register {
@@ -123,6 +150,14 @@ func (r Register) String() string {
 	return InvalidRegisterName
 }
 
+func (r Register) Equal(o Oprand) bool {
+	if oReg, ok := o.(Register); ok {
+		return r == oReg
+	}
+
+	return false
+}
+
 func NewLabel(name string) Label {
 	return Label(strings.ToUpper(name))
 }
@@ -133,6 +168,14 @@ func (l Label) OprandType() OprandType {
 
 func (l Label) String() string {
 	return string(l)
+}
+
+func (l Label) Equal(o Oprand) bool {
+	if oLabel, ok := o.(Label); ok {
+		return l == oLabel
+	}
+
+	return false
 }
 
 func ParseLiteral(s string) (Literal, error) {
@@ -152,6 +195,85 @@ func (l Literal) String() string {
 	return strconv.Itoa(int(l))
 }
 
+func (l Literal) Equal(o Oprand) bool {
+	if oLiteral, ok := o.(Literal); ok {
+		return l == oLiteral
+	}
+
+	return false
+}
+
 func (l Literal) InStandardRange() bool {
 	return l >= -999 && l <= 999
+}
+
+type Context struct {
+	Raw   []rune
+	Start int
+	End   int
+	Line  int
+}
+
+func newContext(content []rune, start int, end int, line int) *Context {
+	c := &Context{
+		Raw:   content,
+		Start: start,
+		End:   end,
+		Line:  line,
+	}
+
+	return c
+}
+
+func NewContext(content []rune) *Context {
+	return newContext(content, 0, len(content), -1)
+}
+
+func (c *Context) Mark(start int, end int) *Context {
+	return newContext(c.Raw, start, end, c.Line)
+}
+
+func (c *Context) Error(message string, args ...any) *SyntaxError {
+	err := &SyntaxError{
+		ctx:     *c,
+		message: fmt.Sprintf(message, args...),
+	}
+
+	return err
+}
+
+type Instruction struct {
+	Opcode     Opcode
+	Oprands1   Oprand
+	Oprands2   Oprand
+	Breakpoint bool
+	Comment    string
+}
+
+var InvalidInstruction = Instruction{
+	Opcode: InvalidOpCode,
+}
+
+func (i Instruction) Equals(o Instruction) bool {
+	if i.Opcode != o.Opcode || i.Breakpoint != o.Breakpoint || i.Comment != o.Comment {
+		return false
+	}
+
+	if (i.Oprands1 == nil) != (o.Oprands1 == nil) || (i.Oprands2 == nil) != (o.Oprands2 == nil) {
+		return false
+	}
+
+	if i.Oprands1 != nil && o.Oprands1 != nil {
+		if !i.Oprands1.Equal(o.Oprands1) {
+			return false
+		}
+	}
+
+	if i.Oprands2 != nil && o.Oprands2 != nil {
+		if !i.Oprands2.Equal(o.Oprands2) {
+			return false
+		}
+	}
+
+	return true
 }

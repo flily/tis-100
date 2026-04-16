@@ -12,27 +12,43 @@ func checkOprandType(t *testing.T, oprand Oprand, expected OprandType) {
 	}
 }
 
+func TestOperandTypeInclude(t *testing.T) {
+	types := OprandRegister | OprandLiteral
+
+	if !types.Include(OprandRegister) {
+		t.Errorf("Expected OprandType to include OprandRegister")
+	}
+
+	if !types.Include(OprandLiteral) {
+		t.Errorf("Expected OprandType to include OprandLiteral")
+	}
+
+	if types.Include(OprandLabel) {
+		t.Errorf("Expected OprandType to not include OprandLabel")
+	}
+}
+
 func TestOpCodeNames(t *testing.T) {
 	for code, name := range opCodeNames {
 		if code.String() != name {
 			t.Errorf("OpCode %d: expected name '%s', got '%s'", code, name, code.String())
 		}
 
-		if NewOpCode(name) != code {
-			t.Errorf("OpCode name '%s': expected code %d, got %d", name, code, NewOpCode(name))
+		if NewOpcode(name) != code {
+			t.Errorf("OpCode name '%s': expected code %d, got %d", name, code, NewOpcode(name))
 		}
 	}
 }
 
 func TestInvalidOpCode(t *testing.T) {
-	invalidCode := OpCode(999)
+	invalidCode := Opcode(999)
 	if invalidCode.String() != InvalidOpcodeName {
 		t.Errorf("Invalid OpCode: expected name '%s', got '%s'", InvalidOpcodeName, invalidCode.String())
 	}
 
 	invalidOpCode := "UNKNOWN"
-	if NewOpCode(invalidOpCode) != InvalidOpCode {
-		t.Errorf("Invalid OpCode name '%s': expected code %d, got %d", invalidOpCode, InvalidOpCode, NewOpCode(invalidOpCode))
+	if NewOpcode(invalidOpCode) != InvalidOpCode {
+		t.Errorf("Invalid OpCode name '%s': expected code %d, got %d", invalidOpCode, InvalidOpCode, NewOpcode(invalidOpCode))
 	}
 }
 
