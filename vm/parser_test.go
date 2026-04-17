@@ -36,6 +36,24 @@ func checkParseInstructionError(t *testing.T, code string, errMessage []string) 
 	}
 }
 
+func TestParseInstructionWithEmptyContent(t *testing.T) {
+	code := ""
+	exp := Instruction{
+		Opcode: OpEmpty,
+	}
+
+	checkParseInstructionSuccess(t, code, exp)
+}
+
+func TestParseInstructionWithOnlySpaces(t *testing.T) {
+	code := "    "
+	exp := Instruction{
+		Opcode: OpEmpty,
+	}
+
+	checkParseInstructionSuccess(t, code, exp)
+}
+
 func TestParseInstructWithNoOprands(t *testing.T) {
 	code := "NOP"
 	exp := Instruction{
@@ -121,7 +139,7 @@ func TestParseInstructionWithOnlyLabel(t *testing.T) {
 	code := "LOOP:"
 	exp := Instruction{
 		Label:  "LOOP",
-		Opcode: OpInvalid,
+		Opcode: OpEmpty,
 	}
 
 	checkParseInstructionSuccess(t, code, exp)

@@ -149,7 +149,7 @@ func ParseInstruction(line []rune) (Instruction, error) {
 	base := NewContext(line)
 
 	ins := &Instruction{
-		Opcode: OpInvalid,
+		Opcode: OpEmpty,
 	}
 
 	i := 0

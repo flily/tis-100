@@ -36,7 +36,7 @@ func TestOpCodeNames(t *testing.T) {
 			t.Errorf("OpCode %d: expect name '%s', got '%s'", code, name, code.String())
 		}
 
-		if NewOpcode(name) != code {
+		if !strings.HasPrefix(name, "#") && NewOpcode(name) != code {
 			t.Errorf("OpCode name '%s': expect code %d, got %d", name, code, NewOpcode(name))
 		}
 	}

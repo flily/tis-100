@@ -60,19 +60,20 @@ const (
 
 var (
 	opCodeNames = map[Opcode]string{
-		OpNOP: "NOP",
-		OpMOV: "MOV",
-		OpSWP: "SWP",
-		OpSAV: "SAV",
-		OpADD: "ADD",
-		OpSUB: "SUB",
-		OpNEG: "NEG",
-		OpJMP: "JMP",
-		OpJEZ: "JEZ",
-		OpJNZ: "JNZ",
-		OpJGZ: "JGZ",
-		OpJLZ: "JLZ",
-		OpJRO: "JRO",
+		OpEmpty: "#EMPTY",
+		OpNOP:   "NOP",
+		OpMOV:   "MOV",
+		OpSWP:   "SWP",
+		OpSAV:   "SAV",
+		OpADD:   "ADD",
+		OpSUB:   "SUB",
+		OpNEG:   "NEG",
+		OpJMP:   "JMP",
+		OpJEZ:   "JEZ",
+		OpJNZ:   "JNZ",
+		OpJGZ:   "JGZ",
+		OpJLZ:   "JLZ",
+		OpJRO:   "JRO",
 	}
 	opcodeAcceptOprands = map[Opcode][]OprandType{
 		OpMOV: {OprandRegister | OprandLiteral, OprandRegister | OprandLabel},

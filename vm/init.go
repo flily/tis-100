@@ -1,11 +1,19 @@
 package vm
 
+import (
+	"strings"
+)
+
 func init() {
 	for code, name := range opCodeNames {
-		opCodeValues[name] = code
+		if !strings.HasPrefix(name, "#") {
+			opCodeValues[name] = code
+		}
 	}
 
 	for reg, name := range registerNames {
-		registerValues[name] = reg
+		if !strings.HasPrefix(name, "#") {
+			registerValues[name] = reg
+		}
 	}
 }
