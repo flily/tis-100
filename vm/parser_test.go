@@ -1,10 +1,11 @@
 package vm
 
 import (
+	"strings"
 	"testing"
 )
 
-func checkParseInstruction(t *testing.T, code string, expected Instruction) {
+func checkParseInstructionSuccess(t *testing.T, code string, expected Instruction) {
 	t.Helper()
 
 	got, err := ParseInstruction([]rune(code))
@@ -13,7 +14,24 @@ func checkParseInstruction(t *testing.T, code string, expected Instruction) {
 	}
 
 	if !got.Equals(expected) {
-		t.Errorf("ParseInstruction() = %v, want %v", got, expected)
+		t.Errorf("ParseInstruction() = %v, expect %v", got, expected)
+	}
+}
+
+func checkParseInstructionError(t *testing.T, code string, errMessage []string) {
+	t.Helper()
+
+	got, err := ParseInstruction([]rune(code))
+	if got.Opcode != OpInvalid || err == nil {
+		t.Errorf("ParseInstruction() expected nil and error, got %v", got)
+		t.Errorf("%s", err)
+	}
+
+	gotMessage := err.Error()
+	expected := strings.Join(errMessage, "\n")
+	if gotMessage != expected {
+		t.Errorf("wrong error message, got:\n%s\nexpect:\n%s", gotMessage, expected)
+
 	}
 }
 
@@ -23,7 +41,7 @@ func TestParseInstructWithNoOprands(t *testing.T) {
 		Opcode: OpNOP,
 	}
 
-	checkParseInstruction(t, code, exp)
+	checkParseInstructionSuccess(t, code, exp)
 }
 
 func TestParseInstructionWithOneRegisterOperand(t *testing.T) {
@@ -33,7 +51,7 @@ func TestParseInstructionWithOneRegisterOperand(t *testing.T) {
 		Oprands1: RegisterAcc,
 	}
 
-	checkParseInstruction(t, code, exp)
+	checkParseInstructionSuccess(t, code, exp)
 }
 
 func TestParseInstructionWithOneLiteralOprand(t *testing.T) {
@@ -43,7 +61,7 @@ func TestParseInstructionWithOneLiteralOprand(t *testing.T) {
 		Oprands1: Literal(42),
 	}
 
-	checkParseInstruction(t, code, exp)
+	checkParseInstructionSuccess(t, code, exp)
 }
 
 func TestParseInstructionWithOneLabelOprand(t *testing.T) {
@@ -53,7 +71,7 @@ func TestParseInstructionWithOneLabelOprand(t *testing.T) {
 		Oprands1: Label("LOOP"),
 	}
 
-	checkParseInstruction(t, code, exp)
+	checkParseInstructionSuccess(t, code, exp)
 }
 
 func TestParseInstructionWithTwoOprands(t *testing.T) {
@@ -64,5 +82,58 @@ func TestParseInstructionWithTwoOprands(t *testing.T) {
 		Oprands2: RegisterLeft,
 	}
 
-	checkParseInstruction(t, code, exp)
+	checkParseInstructionSuccess(t, code, exp)
+}
+
+func TestParseInstructionWithTwoOprandsNoComma(t *testing.T) {
+	code := "MOV ACC LEFT"
+	exp := Instruction{
+		Opcode:   OpMOV,
+		Oprands1: RegisterAcc,
+		Oprands2: RegisterLeft,
+	}
+
+	checkParseInstructionSuccess(t, code, exp)
+}
+
+func TestParseInstructionWithCommas(t *testing.T) {
+	codes := []string{
+		"MOV,ACC,LEFT",
+		",MOV,ACC,LEFT",
+		"MOV,ACC,LEFT,",
+		",MOV,ACC,LEFT,",
+		",,,MOV,,,,ACC,,,,LEFT,,,",
+	}
+
+	exp := Instruction{
+		Opcode:   OpMOV,
+		Oprands1: RegisterAcc,
+		Oprands2: RegisterLeft,
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionErrorWithInvalidOpcode1(t *testing.T) {
+	code := "LOREM IPSUM"
+	errMessage := []string{
+		"LOREM IPSUM",
+		"^^^^^",
+		`INVALID OPCODE "LOREM"`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithInvalidOpcode2(t *testing.T) {
+	code := "    LOREM IPSUM"
+	errMessage := []string{
+		"    LOREM IPSUM",
+		"    ^^^^^",
+		`    INVALID OPCODE "LOREM"`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
 }

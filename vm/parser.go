@@ -28,7 +28,7 @@ func (e *SyntaxError) Position() (int, int) {
 }
 
 func (e *SyntaxError) Error() string {
-	return e.message
+	return e.ctx.Message(e.message)
 }
 
 func isSpace(r rune) bool {

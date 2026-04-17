@@ -233,6 +233,16 @@ func (c *Context) Mark(start int, end int) *Context {
 	return newContext(c.Raw, start, end, c.Line)
 }
 
+func (c *Context) Message(message string) string {
+	leadSpace := strings.Repeat(" ", c.Start)
+	lines := []string{
+		string(c.Raw),
+		leadSpace + strings.Repeat("^", c.End-c.Start),
+		leadSpace + message,
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (c *Context) Error(message string, args ...any) *SyntaxError {
 	err := &SyntaxError{
 		ctx:     *c,
