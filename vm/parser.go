@@ -4,7 +4,8 @@ package vm
 // Comma in label is acepted, but this label can not be used as operand, because it will be split into two operands
 
 const (
-	BreakpointChar = '!'
+	CharBreakpoint = '!'
+	CharLabel      = ':'
 
 	errFormatInvalidOpcode     = `INVALID OPCODE "%s"`
 	errFormatInvalidExpression = `INVALID EXPRESSION "%s"`
@@ -89,7 +90,12 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 	i := start
 	for i < len(content) {
 		c := content[i]
-		if isSpace(c) {
+		if c == CharLabel {
+			labelString := string(content[start:i])
+			ins.Label = labelString
+			start = i + 1
+
+		} else if isSpace(c) {
 			break
 		}
 
@@ -97,6 +103,11 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 	}
 
 	opcodeStr := string(content[start:i])
+	if len(opcodeStr) <= 0 && len(ins.Label) > 0 {
+		// This is a label line, not an instruction line
+		return i, nil
+	}
+
 	opcode := NewOpcode(opcodeStr)
 	if opcode == InvalidOpCode {
 		ctx := base.Mark(start, i)
@@ -144,7 +155,7 @@ func ParseInstruction(line []rune) (Instruction, error) {
 	i := 0
 	for i < len(line) {
 		c := line[i]
-		if !ins.Breakpoint && c == BreakpointChar {
+		if !ins.Breakpoint && c == CharBreakpoint {
 			ins.Breakpoint = true
 			i++
 

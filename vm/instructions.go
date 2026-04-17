@@ -21,8 +21,7 @@ type Oprand interface {
 }
 
 const (
-	OpEmpty   Opcode = -2 // Only used internally for empty lines, not a real instruction
-	OpLabel   Opcode = -1 // Only used internally for labels, not a real instruction
+	OpEmpty   Opcode = -1 // Only used internally for empty lines, not a real instruction
 	OpInvalid Opcode = iota
 	OpNOP
 	OpMOV
@@ -253,6 +252,7 @@ func (c *Context) Error(message string, args ...any) *SyntaxError {
 }
 
 type Instruction struct {
+	Label      string
 	Opcode     Opcode
 	Oprands1   Oprand
 	Oprands2   Oprand

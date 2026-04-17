@@ -1,8 +1,9 @@
 package vm
 
 import (
-	"strings"
 	"testing"
+
+	"strings"
 )
 
 func checkParseInstructionSuccess(t *testing.T, code string, expected Instruction) {
@@ -114,6 +115,49 @@ func TestParseInstructionWithCommas(t *testing.T) {
 	for _, code := range codes {
 		checkParseInstructionSuccess(t, code, exp)
 	}
+}
+
+func TestParseInstructionWithOnlyLabel(t *testing.T) {
+	code := "LOOP:"
+	exp := Instruction{
+		Label:  "LOOP",
+		Opcode: OpInvalid,
+	}
+
+	checkParseInstructionSuccess(t, code, exp)
+}
+
+func TestParseInstructionWithLabelAndInstruction0(t *testing.T) {
+	code := "LOOP: NOP"
+	exp := Instruction{
+		Label:  "LOOP",
+		Opcode: OpNOP,
+	}
+
+	checkParseInstructionSuccess(t, code, exp)
+}
+
+func TestParseInstructionWithLabelAndInstruction1(t *testing.T) {
+	code := "START: ADD ACC"
+	exp := Instruction{
+		Label:    "START",
+		Opcode:   OpADD,
+		Oprands1: RegisterAcc,
+	}
+
+	checkParseInstructionSuccess(t, code, exp)
+}
+
+func TestParseInstructionWithLabelAndInstruction2(t *testing.T) {
+	code := "LOOP: MOV ACC, LEFT"
+	exp := Instruction{
+		Label:    "LOOP",
+		Opcode:   OpMOV,
+		Oprands1: RegisterAcc,
+		Oprands2: RegisterLeft,
+	}
+
+	checkParseInstructionSuccess(t, code, exp)
 }
 
 func TestParseInstructionErrorWithInvalidOpcode1(t *testing.T) {
