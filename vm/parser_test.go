@@ -199,3 +199,91 @@ func TestParseInstructionErrorWithInvalidOpcode2(t *testing.T) {
 
 	checkParseInstructionError(t, code, errMessage)
 }
+
+func TestParseInstructionErrorWithTooManyOperands0(t *testing.T) {
+	code := "NOP ACC"
+	errMessage := []string{
+		"NOP ACC",
+		"    ^^^",
+		"    TOO MANY OPERANDS",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithTooManyOperands1(t *testing.T) {
+	code := "ADD ACC, LEFT, RIGHT"
+	errMessage := []string{
+		"ADD ACC, LEFT, RIGHT",
+		"         ^^^^^^^^^^^",
+		"         TOO MANY OPERANDS",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithTooManyOperands2(t *testing.T) {
+	code := "MOV ACC, LEFT, RIGHT, UP"
+	errMessage := []string{
+		"MOV ACC, LEFT, RIGHT, UP",
+		"               ^^^^^^^^^",
+		"               TOO MANY OPERANDS",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithTooManyOperandsAndInvalidOpcode(t *testing.T) {
+	code := "MV ACC, LEFT, RIGHT, UP"
+	errMessage := []string{
+		"MV ACC, LEFT, RIGHT, UP",
+		"^^",
+		`INVALID OPCODE "MV"`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithTooManyOperandsAndInvalidOprand(t *testing.T) {
+	code := "MOV AC, LEFT, RIGHT, UP"
+	errMessage := []string{
+		"MOV AC, LEFT, RIGHT, UP",
+		"              ^^^^^^^^^",
+		`              TOO MANY OPERANDS`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMissingOperand1(t *testing.T) {
+	code := "ADD"
+	errMessage := []string{
+		"ADD",
+		"^^^",
+		"MISSING OPERAND",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMissingOperand1AndTrailingSpace(t *testing.T) {
+	code := "ADD  "
+	errMessage := []string{
+		"ADD  ",
+		"^^^^^",
+		"MISSING OPERAND",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMissingOperand2(t *testing.T) {
+	code := "MOV ACC"
+	errMessage := []string{
+		"MOV ACC",
+		"^^^^^^^",
+		"MISSING OPERAND",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}

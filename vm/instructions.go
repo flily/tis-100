@@ -233,6 +233,10 @@ func (c *Context) Mark(start int, end int) *Context {
 	return newContext(c.Raw, start, end, c.Line)
 }
 
+func (c *Context) MarkAll() *Context {
+	return newContext(c.Raw, 0, len(c.Raw), c.Line)
+}
+
 func (c *Context) Message(message string) string {
 	leadSpace := strings.Repeat(" ", c.Start)
 	lines := []string{
@@ -287,4 +291,13 @@ func (i Instruction) Equals(o Instruction) bool {
 	}
 
 	return true
+}
+
+func (i *Instruction) AddOprand(oprand Oprand) {
+	if i.Oprands1 == nil {
+		i.Oprands1 = oprand
+
+	} else if i.Oprands2 == nil {
+		i.Oprands2 = oprand
+	}
 }

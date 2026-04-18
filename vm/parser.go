@@ -58,7 +58,8 @@ func parseOprand(content []rune, _ *Instruction, base *Context, start int, types
 
 	oprandStr := string(content[start:i])
 	if len(oprandStr) <= 0 {
-		return nil, i, nil
+		err := base.MarkAll().Error(errFormatMissingOperand)
+		return nil, i, err
 	}
 
 	if types.Include(OprandRegister) {
@@ -72,7 +73,7 @@ func parseOprand(content []rune, _ *Instruction, base *Context, start int, types
 		value, err := ParseLiteral(oprandStr)
 		if err != nil {
 			ctx := base.Mark(start, i)
-			return nil, -1, ctx.Error(errFormatInvalidExpression, oprandStr)
+			return nil, i, ctx.Error(errFormatInvalidExpression, oprandStr)
 		}
 
 		return value, i, nil
@@ -118,28 +119,26 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 	i = skipSpace(content, i)
 
 	oprandTypes := opcode.AcceptOprands()
-	if len(oprandTypes) <= 0 {
-		return i, nil
+	oprands := make([]Oprand, 0, len(oprandTypes))
+	oprandErrs := make([]error, 0, len(oprandTypes))
+	for j := range oprandTypes {
+		op, next, err := parseOprand(content, ins, base, i, oprandTypes[j])
+		oprands = append(oprands, op)
+		oprandErrs = append(oprandErrs, err)
+		i = skipSpace(content, next)
 	}
 
-	if len(oprandTypes) > 0 {
-		op1, next, err := parseOprand(content, ins, base, i, oprandTypes[0])
-		if err != nil {
-			return -1, err
+	if i < len(content) {
+		ctx := base.Mark(i, len(content))
+		return -1, ctx.Error(errFormatTooManyOperands)
+	}
+
+	for k, oprandErr := range oprandErrs {
+		if oprandErr != nil {
+			return -1, oprandErr
 		}
 
-		ins.Oprands1 = op1
-		i = skipSpace(content, next)
-
-		if len(oprandTypes) > 1 {
-			op2, next, err := parseOprand(content, ins, base, i, oprandTypes[1])
-			if err != nil {
-				return -1, err
-			}
-
-			ins.Oprands2 = op2
-			i = skipSpace(content, next)
-		}
+		ins.AddOprand(oprands[k])
 	}
 
 	return i, nil
