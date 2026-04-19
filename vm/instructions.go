@@ -76,7 +76,7 @@ var (
 		OpJRO:   "JRO",
 	}
 	opcodeAcceptOprands = map[Opcode][]OprandType{
-		OpMOV: {OprandRegister | OprandLiteral, OprandRegister | OprandLabel},
+		OpMOV: {OprandRegister | OprandLiteral, OprandRegister | OprandLiteral},
 		OpADD: {OprandRegister | OprandLiteral},
 		OpSUB: {OprandRegister | OprandLiteral},
 		OpJMP: {OprandLabel},

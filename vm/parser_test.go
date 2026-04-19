@@ -287,3 +287,25 @@ func TestParseInstructionErrorWithMissingOperand2(t *testing.T) {
 
 	checkParseInstructionError(t, code, errMessage)
 }
+
+func TestParseInstructionErrorWithInvalidExpression1(t *testing.T) {
+	code := "ADD AC"
+	errMessage := []string{
+		"ADD AC",
+		"    ^^",
+		"    INVALID EXPRESSION \"AC\"",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithInvalidExpression2(t *testing.T) {
+	code := "MOV ACC, 4O"
+	errMessage := []string{
+		"MOV ACC, 4O",
+		"         ^^",
+		"         INVALID EXPRESSION \"4O\"",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
