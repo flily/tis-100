@@ -45,7 +45,7 @@ func skipSpace(content []rune, start int) int {
 	return i
 }
 
-func parseOprand(content []rune, _ *Instruction, base *Context, start int, types OprandType) (Oprand, int, error) {
+func parseOprand(content []rune, _ *Instruction, base *Context, start int, types OprandType) (Oprand, *Context, int, error) {
 	i := start
 	for i < len(content) {
 		c := content[i]
@@ -57,15 +57,17 @@ func parseOprand(content []rune, _ *Instruction, base *Context, start int, types
 	}
 
 	oprandStr := string(content[start:i])
+	ctx := base.Mark(start, i)
+
 	if len(oprandStr) <= 0 {
 		err := base.MarkAll().Error(errFormatMissingOperand)
-		return nil, i, err
+		return nil, nil, i, err
 	}
 
 	if types.Include(OprandRegister) {
 		reg := NewRegister(oprandStr)
 		if reg != InvalidRegister {
-			return reg, i, nil
+			return reg, ctx, i, nil
 		}
 	}
 
@@ -73,18 +75,18 @@ func parseOprand(content []rune, _ *Instruction, base *Context, start int, types
 		value, err := ParseLiteral(oprandStr)
 		if err != nil {
 			ctx := base.Mark(start, i)
-			return nil, i, ctx.Error(errFormatInvalidExpression, oprandStr)
+			return nil, nil, i, ctx.Error(errFormatInvalidExpression, oprandStr)
 		}
 
-		return value, i, nil
+		return value, ctx, i, nil
 	}
 
 	if types.Include(OprandLabel) {
 		label := NewLabel(oprandStr)
-		return label, i, nil
+		return label, ctx, i, nil
 	}
 
-	return nil, i, nil
+	return nil, nil, i, nil
 }
 
 func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (int, error) {
@@ -93,7 +95,8 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 		c := content[i]
 		if c == CharLabel {
 			labelString := string(content[start:i])
-			ins.Label = labelString
+			labelCtx := base.Mark(start, i)
+			ins.SetLabel(labelString, labelCtx)
 			start = i + 1
 
 		} else if isSpace(c) {
@@ -115,15 +118,18 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 		return -1, ctx.Error(errFormatInvalidOpcode, opcodeStr)
 	}
 
-	ins.Opcode = opcode
+	opcodeCtx := base.Mark(start, i)
+	ins.SetOpcode(opcode, opcodeCtx)
 	i = skipSpace(content, i)
 
 	oprandTypes := opcode.AcceptOprands()
 	oprands := make([]Oprand, 0, len(oprandTypes))
+	oprandCtxs := make([]*Context, 0, len(oprandTypes))
 	oprandErrs := make([]error, 0, len(oprandTypes))
 	for j := range oprandTypes {
-		op, next, err := parseOprand(content, ins, base, i, oprandTypes[j])
+		op, ctx, next, err := parseOprand(content, ins, base, i, oprandTypes[j])
 		oprands = append(oprands, op)
+		oprandCtxs = append(oprandCtxs, ctx)
 		oprandErrs = append(oprandErrs, err)
 		i = skipSpace(content, next)
 	}
@@ -138,7 +144,7 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 			return -1, oprandErr
 		}
 
-		ins.AddOprand(oprands[k])
+		ins.AddOprand(oprands[k], oprandCtxs[k])
 	}
 
 	return i, nil

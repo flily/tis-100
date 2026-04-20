@@ -6,6 +6,26 @@ import (
 	"strings"
 )
 
+func checkInstructionContexts(t *testing.T, ins Instruction) {
+	t.Helper()
+
+	if ins.Label != "" && ins.LabelCtx == nil {
+		t.Errorf("Instruction with label '%s' should have LabelCtx, but got nil", ins.Label)
+	}
+
+	if (ins.Opcode > OpInvalid) && ins.OpCodeCtx == nil {
+		t.Errorf("Instruction with opcode %d should have OpCodeCtx, but got nil", ins.Opcode)
+	}
+
+	if ins.Oprand1 != nil && ins.Oprand1Ctx == nil {
+		t.Errorf("Instruction with Oprand1 should have Oprand1Ctx, but got nil")
+	}
+
+	if ins.Oprand2 != nil && ins.Oprand2Ctx == nil {
+		t.Errorf("Instruction with Oprand2 should have Oprand2Ctx, but got nil")
+	}
+}
+
 func checkParseInstructionSuccess(t *testing.T, code string, expected Instruction) {
 	t.Helper()
 
@@ -17,6 +37,8 @@ func checkParseInstructionSuccess(t *testing.T, code string, expected Instructio
 	if !got.Equals(expected) {
 		t.Errorf("ParseInstruction() = %v, expect %v", got, expected)
 	}
+
+	checkInstructionContexts(t, got)
 }
 
 func checkParseInstructionError(t *testing.T, code string, errMessage []string) {
@@ -66,8 +88,8 @@ func TestParseInstructWithNoOprands(t *testing.T) {
 func TestParseInstructionWithOneRegisterOperand(t *testing.T) {
 	code := "ADD ACC"
 	exp := Instruction{
-		Opcode:   OpADD,
-		Oprands1: RegisterAcc,
+		Opcode:  OpADD,
+		Oprand1: RegisterAcc,
 	}
 
 	checkParseInstructionSuccess(t, code, exp)
@@ -76,8 +98,8 @@ func TestParseInstructionWithOneRegisterOperand(t *testing.T) {
 func TestParseInstructionWithOneLiteralOprand(t *testing.T) {
 	code := "SUB 42"
 	exp := Instruction{
-		Opcode:   OpSUB,
-		Oprands1: Literal(42),
+		Opcode:  OpSUB,
+		Oprand1: Literal(42),
 	}
 
 	checkParseInstructionSuccess(t, code, exp)
@@ -86,8 +108,8 @@ func TestParseInstructionWithOneLiteralOprand(t *testing.T) {
 func TestParseInstructionWithOneLabelOprand(t *testing.T) {
 	code := "JMP LOOP"
 	exp := Instruction{
-		Opcode:   OpJMP,
-		Oprands1: Label("LOOP"),
+		Opcode:  OpJMP,
+		Oprand1: Label("LOOP"),
 	}
 
 	checkParseInstructionSuccess(t, code, exp)
@@ -96,9 +118,9 @@ func TestParseInstructionWithOneLabelOprand(t *testing.T) {
 func TestParseInstructionWithTwoOprands(t *testing.T) {
 	code := "MOV ACC, LEFT"
 	exp := Instruction{
-		Opcode:   OpMOV,
-		Oprands1: RegisterAcc,
-		Oprands2: RegisterLeft,
+		Opcode:  OpMOV,
+		Oprand1: RegisterAcc,
+		Oprand2: RegisterLeft,
 	}
 
 	checkParseInstructionSuccess(t, code, exp)
@@ -107,9 +129,9 @@ func TestParseInstructionWithTwoOprands(t *testing.T) {
 func TestParseInstructionWithTwoOprandsNoComma(t *testing.T) {
 	code := "MOV ACC LEFT"
 	exp := Instruction{
-		Opcode:   OpMOV,
-		Oprands1: RegisterAcc,
-		Oprands2: RegisterLeft,
+		Opcode:  OpMOV,
+		Oprand1: RegisterAcc,
+		Oprand2: RegisterLeft,
 	}
 
 	checkParseInstructionSuccess(t, code, exp)
@@ -125,9 +147,9 @@ func TestParseInstructionWithCommas(t *testing.T) {
 	}
 
 	exp := Instruction{
-		Opcode:   OpMOV,
-		Oprands1: RegisterAcc,
-		Oprands2: RegisterLeft,
+		Opcode:  OpMOV,
+		Oprand1: RegisterAcc,
+		Oprand2: RegisterLeft,
 	}
 
 	for _, code := range codes {
@@ -158,9 +180,9 @@ func TestParseInstructionWithLabelAndInstruction0(t *testing.T) {
 func TestParseInstructionWithLabelAndInstruction1(t *testing.T) {
 	code := "START: ADD ACC"
 	exp := Instruction{
-		Label:    "START",
-		Opcode:   OpADD,
-		Oprands1: RegisterAcc,
+		Label:   "START",
+		Opcode:  OpADD,
+		Oprand1: RegisterAcc,
 	}
 
 	checkParseInstructionSuccess(t, code, exp)
@@ -169,10 +191,10 @@ func TestParseInstructionWithLabelAndInstruction1(t *testing.T) {
 func TestParseInstructionWithLabelAndInstruction2(t *testing.T) {
 	code := "LOOP: MOV ACC, LEFT"
 	exp := Instruction{
-		Label:    "LOOP",
-		Opcode:   OpMOV,
-		Oprands1: RegisterAcc,
-		Oprands2: RegisterLeft,
+		Label:   "LOOP",
+		Opcode:  OpMOV,
+		Oprand1: RegisterAcc,
+		Oprand2: RegisterLeft,
 	}
 
 	checkParseInstructionSuccess(t, code, exp)

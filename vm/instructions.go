@@ -258,9 +258,13 @@ func (c *Context) Error(message string, args ...any) *SyntaxError {
 
 type Instruction struct {
 	Label      string
+	LabelCtx   *Context
 	Opcode     Opcode
-	Oprands1   Oprand
-	Oprands2   Oprand
+	OpCodeCtx  *Context
+	Oprand1    Oprand
+	Oprand1Ctx *Context
+	Oprand2    Oprand
+	Oprand2Ctx *Context
 	Breakpoint bool
 	Comment    string
 }
@@ -274,18 +278,18 @@ func (i Instruction) Equals(o Instruction) bool {
 		return false
 	}
 
-	if (i.Oprands1 == nil) != (o.Oprands1 == nil) || (i.Oprands2 == nil) != (o.Oprands2 == nil) {
+	if (i.Oprand1 == nil) != (o.Oprand1 == nil) || (i.Oprand2 == nil) != (o.Oprand2 == nil) {
 		return false
 	}
 
-	if i.Oprands1 != nil && o.Oprands1 != nil {
-		if !i.Oprands1.Equal(o.Oprands1) {
+	if i.Oprand1 != nil && o.Oprand1 != nil {
+		if !i.Oprand1.Equal(o.Oprand1) {
 			return false
 		}
 	}
 
-	if i.Oprands2 != nil && o.Oprands2 != nil {
-		if !i.Oprands2.Equal(o.Oprands2) {
+	if i.Oprand2 != nil && o.Oprand2 != nil {
+		if !i.Oprand2.Equal(o.Oprand2) {
 			return false
 		}
 	}
@@ -293,11 +297,23 @@ func (i Instruction) Equals(o Instruction) bool {
 	return true
 }
 
-func (i *Instruction) AddOprand(oprand Oprand) {
-	if i.Oprands1 == nil {
-		i.Oprands1 = oprand
+func (i *Instruction) SetLabel(label string, ctx *Context) {
+	i.Label = label
+	i.LabelCtx = ctx
+}
 
-	} else if i.Oprands2 == nil {
-		i.Oprands2 = oprand
+func (i *Instruction) SetOpcode(opcode Opcode, ctx *Context) {
+	i.Opcode = opcode
+	i.OpCodeCtx = ctx
+}
+
+func (i *Instruction) AddOprand(oprand Oprand, ctx *Context) {
+	if i.Oprand1 == nil {
+		i.Oprand1 = oprand
+		i.Oprand1Ctx = ctx
+
+	} else if i.Oprand2 == nil {
+		i.Oprand2 = oprand
+		i.Oprand2Ctx = ctx
 	}
 }
