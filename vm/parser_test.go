@@ -457,6 +457,28 @@ func TestParseInstructionErrorWithBreakpointInOprand2(t *testing.T) {
 	checkParseInstructionError(t, code, errMessage)
 }
 
+func TestParseInstructionErrorWithMultipleBreakpointsOnLabel1(t *testing.T) {
+	code := "!LOOP:!"
+	errMessage := []string{
+		"!LOOP:!",
+		"      ^",
+		`      INVALID OPCODE "!"`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMultipleBreakpointsOnLabel2(t *testing.T) {
+	code := "LOOP:!!"
+	errMessage := []string{
+		"LOOP:!!",
+		"      ^",
+		`      INVALID OPCODE "!"`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
 func TestParseInstructionErrorWithMultipleBreakpoints0(t *testing.T) {
 	code := "!NOP!"
 	errMessage := []string{
