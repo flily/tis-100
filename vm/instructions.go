@@ -273,7 +273,7 @@ var InvalidInstruction = Instruction{
 	Opcode: InvalidOpCode,
 }
 
-func (i Instruction) Equals(o Instruction) bool {
+func (i *Instruction) Equals(o Instruction) bool {
 	if i.Opcode != o.Opcode || i.Breakpoint != o.Breakpoint || i.Comment != o.Comment {
 		return false
 	}
@@ -295,6 +295,10 @@ func (i Instruction) Equals(o Instruction) bool {
 	}
 
 	return true
+}
+
+func (i *Instruction) Empty() bool {
+	return i.Opcode <= OpInvalid
 }
 
 func (i *Instruction) SetLabel(label string, ctx *Context) {

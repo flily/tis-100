@@ -13,7 +13,7 @@ func checkInstructionContexts(t *testing.T, ins Instruction) {
 		t.Errorf("Instruction with label '%s' should have LabelCtx, but got nil", ins.Label)
 	}
 
-	if (ins.Opcode > OpInvalid) && ins.OpCodeCtx == nil {
+	if !ins.Empty() && ins.OpCodeCtx == nil {
 		t.Errorf("Instruction with opcode %d should have OpCodeCtx, but got nil", ins.Opcode)
 	}
 
@@ -26,7 +26,7 @@ func checkInstructionContexts(t *testing.T, ins Instruction) {
 	}
 }
 
-func checkParseInstructionSuccess(t *testing.T, code string, expected Instruction) {
+func checkParseInstructionSuccess(t *testing.T, code string, expected Instruction) Instruction {
 	t.Helper()
 
 	got, err := ParseInstruction([]rune(code))
@@ -39,6 +39,8 @@ func checkParseInstructionSuccess(t *testing.T, code string, expected Instructio
 	}
 
 	checkInstructionContexts(t, got)
+
+	return got
 }
 
 func checkParseInstructionError(t *testing.T, code string, errMessage []string) {
@@ -330,4 +332,55 @@ func TestParseInstructionErrorWithInvalidExpression2(t *testing.T) {
 	}
 
 	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestInstructionContexts(t *testing.T) {
+	code := "LOOP: MOV ACC, LEFT"
+	exp := Instruction{
+		Label:   "LOOP",
+		Opcode:  OpMOV,
+		Oprand1: RegisterAcc,
+		Oprand2: RegisterLeft,
+	}
+
+	ins := checkParseInstructionSuccess(t, code, exp)
+
+	tag := strings.Join([]string{
+		"LOOP: MOV ACC, LEFT",
+		"^^^^",
+		"HERE",
+	}, "\n")
+	if ins.LabelCtx == nil || ins.LabelCtx.Message("HERE") != tag {
+		t.Errorf("Label context is wrong, got:\n%s\nexpect:\n%s", ins.LabelCtx.Message("HERE"), tag)
+	}
+
+	opcode := strings.Join([]string{
+		"LOOP: MOV ACC, LEFT",
+		"      ^^^",
+		"      HERE",
+	}, "\n")
+
+	if ins.OpCodeCtx == nil || ins.OpCodeCtx.Message("HERE") != opcode {
+		t.Errorf("Opcode context is wrong, got:\n%s\nexpect:\n%s", ins.OpCodeCtx.Message("HERE"), opcode)
+	}
+
+	oprand1 := strings.Join([]string{
+		"LOOP: MOV ACC, LEFT",
+		"          ^^^",
+		"          HERE",
+	}, "\n")
+
+	if ins.Oprand1Ctx == nil || ins.Oprand1Ctx.Message("HERE") != oprand1 {
+		t.Errorf("Oprand1 context is wrong, got:\n%s\nexpect:\n%s", ins.Oprand1Ctx.Message("HERE"), oprand1)
+	}
+
+	oprand2 := strings.Join([]string{
+		"LOOP: MOV ACC, LEFT",
+		"               ^^^^",
+		"               HERE",
+	}, "\n")
+
+	if ins.Oprand2Ctx == nil || ins.Oprand2Ctx.Message("HERE") != oprand2 {
+		t.Errorf("Oprand2 context is wrong, got:\n%s\nexpect:\n%s", ins.Oprand2Ctx.Message("HERE"), oprand2)
+	}
 }
