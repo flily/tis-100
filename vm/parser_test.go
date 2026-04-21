@@ -35,6 +35,7 @@ func checkParseInstructionSuccess(t *testing.T, code string, expected Instructio
 	}
 
 	if !got.Equals(expected) {
+		t.Errorf("Got wrong instruction on: %s", code)
 		t.Errorf("ParseInstruction() = %v, expect %v", got, expected)
 	}
 
@@ -49,14 +50,13 @@ func checkParseInstructionError(t *testing.T, code string, errMessage []string) 
 	got, err := ParseInstruction([]rune(code))
 	if got.Opcode != OpInvalid || err == nil {
 		t.Errorf("ParseInstruction() expected nil and error, got %v", got)
-		t.Errorf("%s", err)
+		t.Fatalf("%s", err)
 	}
 
 	gotMessage := err.Error()
 	expected := strings.Join(errMessage, "\n")
 	if gotMessage != expected {
 		t.Errorf("wrong error message, got:\n%s\nexpect:\n%s", gotMessage, expected)
-
 	}
 }
 
@@ -202,6 +202,96 @@ func TestParseInstructionWithLabelAndInstruction2(t *testing.T) {
 	checkParseInstructionSuccess(t, code, exp)
 }
 
+func TestParseInstructionWithBreakpointInLabel(t *testing.T) {
+	codes := []string{
+		"!LOOP:",
+		"LOOP:!",
+	}
+
+	exp := Instruction{
+		Breakpoint: true,
+		Label:      "LOOP",
+		Opcode:     OpEmpty,
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithBreakpointInInstruction0(t *testing.T) {
+	codes := []string{
+		"NOP!",
+		"!NOP",
+	}
+
+	exp := Instruction{
+		Breakpoint: true,
+		Opcode:     OpNOP,
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithBreakpointInInstruction1Register(t *testing.T) {
+	codes := []string{
+		"!ADD ACC",
+		"ADD! ACC",
+		"ADD !ACC",
+		"ADD ACC!",
+	}
+
+	exp := Instruction{
+		Breakpoint: true,
+		Opcode:     OpADD,
+		Oprand1:    RegisterAcc,
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithBreakpointInInstruction1Literal(t *testing.T) {
+	codes := []string{
+		"!SUB 42",
+		"SUB! 42",
+		"SUB !42",
+		"SUB 42!",
+	}
+
+	exp := Instruction{
+		Breakpoint: true,
+		Opcode:     OpSUB,
+		Oprand1:    Literal(42),
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithBreakpointInInstruction1Label(t *testing.T) {
+	codes := []string{
+		"!JMP LOOP",
+		"JMP! LOOP",
+		"JMP !LOOP",
+		"JMP LOOP!",
+	}
+
+	exp := Instruction{
+		Breakpoint: true,
+		Opcode:     OpJMP,
+		Oprand1:    Label("LOOP"),
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
 func TestParseInstructionErrorWithInvalidOpcode1(t *testing.T) {
 	code := "LOREM IPSUM"
 	errMessage := []string{
@@ -329,6 +419,72 @@ func TestParseInstructionErrorWithInvalidExpression2(t *testing.T) {
 		"MOV ACC, 4O",
 		"         ^^",
 		"         INVALID EXPRESSION \"4O\"",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithBreakpointInLastOfLabel(t *testing.T) {
+	code := "LOOP!:"
+	errMessage := []string{
+		"LOOP!:",
+		"^^^^",
+		`INVALID OPCODE "LOOP"`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithBreakpointInOprand1(t *testing.T) {
+	code := "ADD A!CC"
+	errMessage := []string{
+		"ADD A!CC",
+		"      ^^",
+		"      TOO MANY OPERANDS",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithBreakpointInOprand2(t *testing.T) {
+	code := "MOV ACC, L!EFT"
+	errMessage := []string{
+		"MOV ACC, L!EFT",
+		"           ^^^",
+		"           TOO MANY OPERANDS",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMultipleBreakpoints0(t *testing.T) {
+	code := "!NOP!"
+	errMessage := []string{
+		"!NOP!",
+		" ^^^^",
+		` INVALID OPCODE "NOP!"`,
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMultipleBreakpoints1(t *testing.T) {
+	code := "ADD !ACC!"
+	errMessage := []string{
+		"ADD !ACC!",
+		"     ^^^^",
+		"     INVALID EXPRESSION \"ACC!\"",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMultipleBreakpoints2(t *testing.T) {
+	code := "MOV !ACC, LEFT!"
+	errMessage := []string{
+		"MOV !ACC, LEFT!",
+		"          ^^^^^",
+		"          INVALID EXPRESSION \"LEFT!\"",
 	}
 
 	checkParseInstructionError(t, code, errMessage)

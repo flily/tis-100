@@ -36,20 +36,24 @@ func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == ','
 }
 
-func skipSpace(content []rune, start int) int {
+func skipSpace(content []rune, ins *Instruction, start int) int {
 	i := start
-	for i < len(content) && isSpace(content[i]) {
+	for i < len(content) && (isSpace(content[i]) || ins.ExpectBreakpoint(content[i])) {
+		if ins.ExpectBreakpoint(content[i]) {
+			ins.Breakpoint = true
+		}
+
 		i++
 	}
 
 	return i
 }
 
-func parseOprand(content []rune, _ *Instruction, base *Context, start int, types OprandType) (Oprand, *Context, int, error) {
+func parseOprand(content []rune, ins *Instruction, base *Context, start int, types OprandType) (Oprand, *Context, int, error) {
 	i := start
 	for i < len(content) {
 		c := content[i]
-		if isSpace(c) {
+		if isSpace(c) || ins.ExpectBreakpoint(c) {
 			break
 		}
 
@@ -79,18 +83,17 @@ func parseOprand(content []rune, _ *Instruction, base *Context, start int, types
 		}
 
 		return value, ctx, i, nil
-	}
 
-	if types.Include(OprandLabel) {
+	} else {
+		// if types.Include(OprandLabel)
 		label := NewLabel(oprandStr)
 		return label, ctx, i, nil
 	}
-
-	return nil, nil, i, nil
 }
 
-func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (int, error) {
+func parseOpcode(content []rune, ins *Instruction, base *Context, start int) error {
 	i := start
+	leadingSpace := false
 	for i < len(content) {
 		c := content[i]
 		if c == CharLabel {
@@ -98,29 +101,49 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 			labelCtx := base.Mark(start, i)
 			ins.SetLabel(labelString, labelCtx)
 			start = i + 1
+			leadingSpace = true
 
-		} else if isSpace(c) {
-			break
+		} else if isSpace(c) || ins.ExpectBreakpoint(c) {
+			if ins.ExpectBreakpoint(c) {
+				ins.Breakpoint = true
+			}
+
+			if leadingSpace {
+				start = i + 1
+
+			} else {
+				break
+			}
+
+		} else {
+			leadingSpace = false
 		}
 
 		i++
 	}
 
 	opcodeStr := string(content[start:i])
-	if len(opcodeStr) <= 0 && len(ins.Label) > 0 {
+	if len(opcodeStr) <= 0 {
 		// This is a label line, not an instruction line
-		return i, nil
+		return nil
 	}
 
 	opcode := NewOpcode(opcodeStr)
 	if opcode == InvalidOpCode {
 		ctx := base.Mark(start, i)
-		return -1, ctx.Error(errFormatInvalidOpcode, opcodeStr)
+		return ctx.Error(errFormatInvalidOpcode, opcodeStr)
 	}
 
 	opcodeCtx := base.Mark(start, i)
 	ins.SetOpcode(opcode, opcodeCtx)
-	i = skipSpace(content, i)
+
+	if i < len(content) && content[i] == CharBreakpoint {
+		// NOP!
+		//    ^
+		// current bang is marked as breakpoint, but not skipped, next process will read it as part of operand
+		i++
+	}
+	i = skipSpace(content, ins, i)
 
 	oprandTypes := opcode.AcceptOprands()
 	oprands := make([]Oprand, 0, len(oprandTypes))
@@ -131,23 +154,23 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) (in
 		oprands = append(oprands, op)
 		oprandCtxs = append(oprandCtxs, ctx)
 		oprandErrs = append(oprandErrs, err)
-		i = skipSpace(content, next)
+		i = skipSpace(content, ins, next)
 	}
 
 	if i < len(content) {
 		ctx := base.Mark(i, len(content))
-		return -1, ctx.Error(errFormatTooManyOperands)
+		return ctx.Error(errFormatTooManyOperands)
 	}
 
 	for k, oprandErr := range oprandErrs {
 		if oprandErr != nil {
-			return -1, oprandErr
+			return oprandErr
 		}
 
 		ins.AddOprand(oprands[k], oprandCtxs[k])
 	}
 
-	return i, nil
+	return nil
 }
 
 func ParseInstruction(line []rune) (Instruction, error) {
@@ -157,24 +180,10 @@ func ParseInstruction(line []rune) (Instruction, error) {
 		Opcode: OpEmpty,
 	}
 
-	i := 0
-	for i < len(line) {
-		c := line[i]
-		if !ins.Breakpoint && c == CharBreakpoint {
-			ins.Breakpoint = true
-			i++
-
-		} else if isSpace(c) {
-			i++
-
-		} else {
-			next, err := parseOpcode(line, ins, base, i)
-			if err != nil {
-				return InvalidInstruction, err
-			}
-
-			i = next
-		}
+	i := skipSpace(line, ins, 0)
+	err := parseOpcode(line, ins, base, i)
+	if err != nil {
+		return InvalidInstruction, err
 	}
 
 	return *ins, nil

@@ -274,6 +274,10 @@ var InvalidInstruction = Instruction{
 }
 
 func (i *Instruction) Equals(o Instruction) bool {
+	if i.Breakpoint != o.Breakpoint {
+		return false
+	}
+
 	if i.Opcode != o.Opcode || i.Breakpoint != o.Breakpoint || i.Comment != o.Comment {
 		return false
 	}
@@ -295,6 +299,14 @@ func (i *Instruction) Equals(o Instruction) bool {
 	}
 
 	return true
+}
+
+func (i *Instruction) ExpectBreakpoint(r rune) bool {
+	if i.Breakpoint {
+		return false
+	}
+
+	return r == CharBreakpoint
 }
 
 func (i *Instruction) Empty() bool {
