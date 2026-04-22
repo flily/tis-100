@@ -75,8 +75,8 @@ func parseOprand(content []rune, ins *Instruction, base *Context, start int, typ
 		}
 	}
 
-	if types.Include(OprandLiteral) {
-		value, err := ParseLiteral(oprandStr)
+	if types.Include(OprandValue) {
+		value, err := ParseValue(oprandStr)
 		if err != nil {
 			ctx := base.Mark(start, i)
 			return nil, nil, i, ctx.Error(errFormatInvalidExpression, oprandStr)

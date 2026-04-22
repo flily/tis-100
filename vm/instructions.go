@@ -12,7 +12,7 @@ type (
 	OprandType uint
 	Register   int
 	Label      string
-	Literal    int
+	Value      int
 )
 
 type Oprand interface {
@@ -39,7 +39,7 @@ const (
 
 	OprandRegister OprandType = 1
 	OprandLabel    OprandType = 2
-	OprandLiteral  OprandType = 4
+	OprandValue    OprandType = 4
 
 	RegisterInvalid Register = iota
 	RegisterAcc
@@ -76,15 +76,15 @@ var (
 		OpJRO:   "JRO",
 	}
 	opcodeAcceptOprands = map[Opcode][]OprandType{
-		OpMOV: {OprandRegister | OprandLiteral, OprandRegister | OprandLiteral},
-		OpADD: {OprandRegister | OprandLiteral},
-		OpSUB: {OprandRegister | OprandLiteral},
+		OpMOV: {OprandRegister | OprandValue, OprandRegister | OprandValue},
+		OpADD: {OprandRegister | OprandValue},
+		OpSUB: {OprandRegister | OprandValue},
 		OpJMP: {OprandLabel},
 		OpJEZ: {OprandLabel},
 		OpJNZ: {OprandLabel},
 		OpJGZ: {OprandLabel},
 		OpJLZ: {OprandLabel},
-		OpJRO: {OprandRegister | OprandLiteral},
+		OpJRO: {OprandRegister | OprandValue},
 	}
 
 	registerNames = map[Register]string{
@@ -178,32 +178,32 @@ func (l Label) Equal(o Oprand) bool {
 	return false
 }
 
-func ParseLiteral(s string) (Literal, error) {
+func ParseValue(s string) (Value, error) {
 	value, err := strconv.Atoi(s)
 	if err != nil {
 		return 0, err
 	}
 
-	return Literal(value), nil
+	return Value(value), nil
 }
 
-func (l Literal) OprandType() OprandType {
-	return OprandLiteral
+func (l Value) OprandType() OprandType {
+	return OprandValue
 }
 
-func (l Literal) String() string {
+func (l Value) String() string {
 	return strconv.Itoa(int(l))
 }
 
-func (l Literal) Equal(o Oprand) bool {
-	if oLiteral, ok := o.(Literal); ok {
-		return l == oLiteral
+func (l Value) Equal(o Oprand) bool {
+	if oValue, ok := o.(Value); ok {
+		return l == oValue
 	}
 
 	return false
 }
 
-func (l Literal) InStandardRange() bool {
+func (l Value) InStandardRange() bool {
 	return l >= -999 && l <= 999
 }
 

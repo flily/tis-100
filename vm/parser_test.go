@@ -97,11 +97,11 @@ func TestParseInstructionWithOneRegisterOperand(t *testing.T) {
 	checkParseInstructionSuccess(t, code, exp)
 }
 
-func TestParseInstructionWithOneLiteralOprand(t *testing.T) {
+func TestParseInstructionWithOneValueOprand(t *testing.T) {
 	code := "SUB 42"
 	exp := Instruction{
 		Opcode:  OpSUB,
-		Oprand1: Literal(42),
+		Oprand1: Value(42),
 	}
 
 	checkParseInstructionSuccess(t, code, exp)
@@ -254,7 +254,7 @@ func TestParseInstructionWithBreakpointInInstruction1Register(t *testing.T) {
 	}
 }
 
-func TestParseInstructionWithBreakpointInInstruction1Literal(t *testing.T) {
+func TestParseInstructionWithBreakpointInInstruction1Value(t *testing.T) {
 	codes := []string{
 		"!SUB 42",
 		"SUB! 42",
@@ -265,7 +265,7 @@ func TestParseInstructionWithBreakpointInInstruction1Literal(t *testing.T) {
 	exp := Instruction{
 		Breakpoint: true,
 		Opcode:     OpSUB,
-		Oprand1:    Literal(42),
+		Oprand1:    Value(42),
 	}
 
 	for _, code := range codes {

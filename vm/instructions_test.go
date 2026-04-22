@@ -15,13 +15,13 @@ func checkOprandType(t *testing.T, oprand Oprand, expect OprandType) {
 }
 
 func TestOperandTypeInclude(t *testing.T) {
-	types := OprandRegister | OprandLiteral
+	types := OprandRegister | OprandValue
 
 	if !types.Include(OprandRegister) {
 		t.Errorf("expect OprandType to include OprandRegister")
 	}
 
-	if !types.Include(OprandLiteral) {
+	if !types.Include(OprandValue) {
 		t.Errorf("expect OprandType to include OprandLiteral")
 	}
 
@@ -91,7 +91,7 @@ func TestRegisterEqual(t *testing.T) {
 	}{
 		{reg: RegisterAcc, oprand: RegisterAcc, expected: true},
 		{reg: RegisterAcc, oprand: RegisterBak, expected: false},
-		{reg: RegisterAcc, oprand: Literal(42), expected: false},
+		{reg: RegisterAcc, oprand: Value(42), expected: false},
 		{reg: RegisterAcc, oprand: NewLabel("LOOP"), expected: false},
 	}
 
@@ -122,7 +122,7 @@ func TestLabelEqual(t *testing.T) {
 		{label: NewLabel("LOOP"), oprand: NewLabel("LOOP"), expected: true},
 		{label: NewLabel("LOOP"), oprand: NewLabel("END"), expected: false},
 		{label: NewLabel("LOOP"), oprand: RegisterAcc, expected: false},
-		{label: NewLabel("LOOP"), oprand: Literal(42), expected: false},
+		{label: NewLabel("LOOP"), oprand: Value(42), expected: false},
 	}
 
 	for _, c := range cases {
@@ -136,12 +136,12 @@ func TestLiteral(t *testing.T) {
 	literalValue := 42
 	literalStr := "42"
 
-	literal, err := ParseLiteral(literalStr)
+	literal, err := ParseValue(literalStr)
 	if err != nil {
 		t.Fatalf("Failed to parse literal: %v", err)
 	}
 
-	checkOprandType(t, literal, OprandLiteral)
+	checkOprandType(t, literal, OprandValue)
 
 	if int(literal) != literalValue {
 		t.Errorf("Literal: expect value %d, got %d", literalValue, literal)
@@ -156,12 +156,12 @@ func TestNegativeLiteral(t *testing.T) {
 	literalValue := -42
 	literalStr := "-42"
 
-	literal, err := ParseLiteral(literalStr)
+	literal, err := ParseValue(literalStr)
 	if err != nil {
 		t.Fatalf("Failed to parse negative literal: %v", err)
 	}
 
-	checkOprandType(t, literal, OprandLiteral)
+	checkOprandType(t, literal, OprandValue)
 
 	if int(literal) != literalValue {
 		t.Errorf("Negative Literal: expect value %d, got %d", literalValue, literal)
@@ -175,7 +175,7 @@ func TestNegativeLiteral(t *testing.T) {
 func TestInvalidLiteral(t *testing.T) {
 	invalidLiteralStr := "abc"
 
-	_, err := ParseLiteral(invalidLiteralStr)
+	_, err := ParseValue(invalidLiteralStr)
 	if err == nil {
 		t.Fatalf("expect error when parsing invalid literal '%s', but got none", invalidLiteralStr)
 	}
@@ -183,7 +183,7 @@ func TestInvalidLiteral(t *testing.T) {
 
 func TestLiteralRange(t *testing.T) {
 	cases := []struct {
-		value     Literal
+		value     Value
 		expeceted bool
 	}{
 		{value: 0, expeceted: true},
@@ -207,14 +207,14 @@ func TestLiteralRange(t *testing.T) {
 
 func TestLiteralEqual(t *testing.T) {
 	cases := []struct {
-		literal  Literal
+		literal  Value
 		oprand   Oprand
 		expected bool
 	}{
-		{literal: Literal(42), oprand: Literal(42), expected: true},
-		{literal: Literal(42), oprand: Literal(43), expected: false},
-		{literal: Literal(42), oprand: RegisterAcc, expected: false},
-		{literal: Literal(42), oprand: NewLabel("LOOP"), expected: false},
+		{literal: Value(42), oprand: Value(42), expected: true},
+		{literal: Value(42), oprand: Value(43), expected: false},
+		{literal: Value(42), oprand: RegisterAcc, expected: false},
+		{literal: Value(42), oprand: NewLabel("LOOP"), expected: false},
 	}
 
 	for _, c := range cases {
