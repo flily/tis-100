@@ -1,5 +1,7 @@
 package vm
 
+import "slices"
+
 type Memory struct {
 	Units []Value
 	Index int
@@ -13,7 +15,7 @@ func NewMemory(size int) *Memory {
 		Units: units,
 		Index: 0,
 		Start: 0,
-		End:   size,
+		End:   0,
 	}
 
 	return m
@@ -90,11 +92,24 @@ func (m *Memory) Read() (Value, bool) {
 }
 
 func (m *Memory) Write(value Value) bool {
-	if m.Index < len(m.Units) && m.Index < m.End {
+	if m.Index < len(m.Units) && m.End < len(m.Units) {
 		m.Units[m.Index] = value
 		m.Index++
+		m.End++
 		return true
 	}
 
 	return false
+}
+
+func (m *Memory) Length() int {
+	return m.End - m.Start
+}
+
+func (m *Memory) Size() int {
+	return len(m.Units)
+}
+
+func (m *Memory) EqualToValues(values []Value) bool {
+	return slices.Equal(m.Units[m.Start:m.End], values)
 }

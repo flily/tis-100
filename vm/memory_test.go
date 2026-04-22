@@ -10,6 +10,10 @@ func TestMemoryAsStaticMemoryQueueRead(t *testing.T) {
 	data := []Value{2, 3, 5, 7, 11, 13, 17, 19, 23, 29}
 	m := NewMemoryWith(data)
 
+	if m.Length() != len(data) || m.Size() != len(data) {
+		t.Errorf("Got wrong length or size: length=%d size=%d, expect length=%d size=%d", m.Length(), m.Size(), len(data), len(data))
+	}
+
 	got := make([]Value, 0, len(data))
 	for {
 		value, ok := m.Read()
@@ -20,7 +24,7 @@ func TestMemoryAsStaticMemoryQueueRead(t *testing.T) {
 		got = append(got, value)
 	}
 
-	if !slices.Equal(got, data) {
+	if !m.EqualToValues(data) {
 		t.Errorf("Read wrong result")
 		t.Errorf("expect: %v", data)
 		t.Errorf("got: %v", got)
@@ -35,6 +39,10 @@ func TestMemoryAsStaticMemoryQueueWrite1(t *testing.T) {
 	data := []Value{2, 3, 5, 7, 11, 13, 17, 19, 23, 29}
 	m := NewMemory(5)
 
+	if m.Length() != 0 || m.Size() != 5 {
+		t.Errorf("Got wrong length or size: length=%d size=%d, expect length=%d size=%d", m.Length(), m.Size(), 0, 5)
+	}
+
 	for _, value := range data {
 		ok := m.Write(value)
 		if !ok {
@@ -43,7 +51,7 @@ func TestMemoryAsStaticMemoryQueueWrite1(t *testing.T) {
 	}
 
 	exp := []Value{2, 3, 5, 7, 11}
-	if !slices.Equal(m.Units, exp) {
+	if !m.EqualToValues(exp) {
 		t.Errorf("Write wrong result")
 		t.Errorf("expect: %v", exp)
 		t.Errorf("got: %v", m.Units)
@@ -76,12 +84,18 @@ func TestMemoryAsStaticMemoryQueueWrite2(t *testing.T) {
 		t.Errorf("got: %v", m.Units)
 	}
 
+	if !m.EqualToValues(data) {
+		t.Errorf("Write wrong result")
+		t.Errorf("expect: %v", data)
+		t.Errorf("got: %v", m.Units)
+	}
+
 	if m.Index != 5 {
 		t.Errorf("Got wrong index, expect: %d, got: %d", 5, m.Index)
 	}
 
-	if m.End != 8 {
-		t.Errorf("Got wrong end, expect: %d, got: %d", 8, m.End)
+	if m.End != 5 {
+		t.Errorf("Got wrong end, expect: %d, got: %d", 5, m.End)
 	}
 }
 
@@ -135,7 +149,7 @@ func TestMemoryAsStackPush(t *testing.T) {
 	}
 
 	exp := []Value{2, 3, 5, 7, 11}
-	if !slices.Equal(m.Units, exp) {
+	if !m.EqualToValues(exp) {
 		t.Errorf("Push wrong result")
 		t.Errorf("expect: %v", exp)
 		t.Errorf("got: %v", m.Units)
