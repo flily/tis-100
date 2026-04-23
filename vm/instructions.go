@@ -41,6 +41,7 @@ const (
 	OprandLabel    OprandType = 2
 	OprandValue    OprandType = 4
 
+	RegisterNA      Register = -1
 	RegisterInvalid Register = iota
 	RegisterAcc
 	RegisterBak
@@ -88,6 +89,7 @@ var (
 	}
 
 	registerNames = map[Register]string{
+		RegisterNA:    "N/A",
 		RegisterAcc:   "ACC",
 		RegisterBak:   "BAK",
 		RegisterNil:   "NIL",
@@ -257,7 +259,7 @@ func (c *Context) Error(message string, args ...any) *SyntaxError {
 }
 
 type Instruction struct {
-	Label      string
+	Label      Label
 	LabelCtx   *Context
 	Opcode     Opcode
 	OpCodeCtx  *Context
@@ -314,7 +316,7 @@ func (i *Instruction) Empty() bool {
 }
 
 func (i *Instruction) SetLabel(label string, ctx *Context) {
-	i.Label = label
+	i.Label = NewLabel(label)
 	i.LabelCtx = ctx
 }
 
@@ -332,4 +334,20 @@ func (i *Instruction) AddOprand(oprand Oprand, ctx *Context) {
 		i.Oprand2 = oprand
 		i.Oprand2Ctx = ctx
 	}
+}
+
+type Code []Instruction
+
+func (c Code) Equals(o Code) bool {
+	if len(c) != len(o) {
+		return false
+	}
+
+	for i := range c {
+		if !c[i].Equals(o[i]) {
+			return false
+		}
+	}
+
+	return true
 }

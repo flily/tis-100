@@ -240,3 +240,44 @@ func TestContextMarkAndMessage(t *testing.T) {
 		t.Errorf("Context Message: expect:\n%s\ngot:\n%s", expect, message)
 	}
 }
+
+func TestCodeEquals(t *testing.T) {
+	code1 := Code{
+		{
+			Opcode: OpNOP,
+		},
+	}
+
+	code2 := Code{
+		{
+			Opcode: OpNOP,
+		},
+	}
+
+	code3 := Code{
+		{
+			Opcode: OpSAV,
+		},
+	}
+
+	code4 := Code{
+		{
+			Opcode: OpNOP,
+		},
+		{
+			Opcode: OpSAV,
+		},
+	}
+
+	if !code1.Equals(code2) {
+		t.Errorf("Code1 should be equal to Code2")
+	}
+
+	if code1.Equals(code3) {
+		t.Errorf("Code1 should not be equal to Code3")
+	}
+
+	if code1.Equals(code4) {
+		t.Errorf("Code1 should not be equal to Code4")
+	}
+}
