@@ -1,5 +1,7 @@
 package vm
 
+import "strings"
+
 // Label support -`~$%^&*()+=_./?'"
 // Comma in label is acepted, but this label can not be used as operand, because it will be split into two operands
 
@@ -187,4 +189,20 @@ func ParseInstruction(line []rune) (Instruction, error) {
 	}
 
 	return *ins, nil
+}
+
+func ParseCode(code string) (Code, int, error) {
+	lines := strings.Split(code, "\n")
+	instructions := make(Code, 0, len(lines))
+
+	for i, line := range lines {
+		ins, err := ParseInstruction([]rune(line))
+		if err != nil {
+			return nil, i, err
+		}
+
+		instructions = append(instructions, ins)
+	}
+
+	return instructions, -1, nil
 }

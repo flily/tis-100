@@ -562,3 +562,60 @@ func TestInstructionContexts(t *testing.T) {
 		t.Errorf("Oprand2 context is wrong, got:\n%s\nexpect:\n%s", ins.Oprand2Ctx.Message("HERE"), oprand2)
 	}
 }
+
+func TestParseCodeSuccess(t *testing.T) {
+	code := strings.Join([]string{
+		"MOV UP, DOWN",
+		"ADD ACC",
+	}, "\n")
+
+	exp := Code{
+		{
+			Opcode:  OpMOV,
+			Oprand1: RegisterUp,
+			Oprand2: RegisterDown,
+		},
+		{
+			Opcode:  OpADD,
+			Oprand1: RegisterAcc,
+		},
+	}
+
+	got, n, err := ParseCode(code)
+	if n != -1 || err != nil {
+		t.Fatalf("ParseCode() error at line %d:\n%s", n, err)
+	}
+
+	if !exp.Equals(got) {
+		t.Errorf("ParseCode() = %v, expect %v", got, exp)
+	}
+}
+
+func TestParseCodeError(t *testing.T) {
+	code := strings.Join([]string{
+		"MOV UP, DOWN",
+		"ADD A!CC",
+		"SUB 42",
+	}, "\n")
+
+	errMessage := []string{
+		"ADD A!CC",
+		"      ^^",
+		"      TOO MANY OPERANDS",
+	}
+
+	got, n, err := ParseCode(code)
+	if n != 1 || err == nil {
+		t.Fatalf("ParseCode() expected error at line 1, got line %d and error:\n%s", n, err)
+	}
+
+	if got != nil {
+		t.Fatalf("ParseCode() expected nil, got %v", got)
+	}
+
+	gotMessage := err.Error()
+	expected := strings.Join(errMessage, "\n")
+	if gotMessage != expected {
+		t.Errorf("wrong error message, got:\n%s\nexpect:\n%s", gotMessage, expected)
+	}
+}
