@@ -1,6 +1,8 @@
 package vm
 
-import "slices"
+import (
+	"slices"
+)
 
 type Memory struct {
 	Units []Value
