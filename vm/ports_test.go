@@ -4,6 +4,24 @@ import (
 	"testing"
 )
 
+func TestBlockPort(t *testing.T) {
+	for i := range Value(100) {
+		ok := InvalidPort.Write(i)
+		if ok {
+			t.Errorf("InvalidPort should always reject write")
+		}
+
+		v, ok := InvalidPort.Read()
+		if ok {
+			t.Errorf("InvalidPort should always return false for read")
+		}
+
+		if v != Value(0) {
+			t.Errorf("InvalidPort should always return 0 for read, got %d", v)
+		}
+	}
+}
+
 func TestNilPort(t *testing.T) {
 	for i := range Value(100) {
 		ok := NilPort.Write(i)

@@ -7,6 +7,20 @@ const (
 	IOModeReady
 )
 
+type BlockPort int
+
+const (
+	InvalidPort BlockPort = 0
+)
+
+func (p BlockPort) Read() (Value, bool) {
+	return Value(0), false
+}
+
+func (p BlockPort) Write(_ Value) bool {
+	return false
+}
+
 type ConstPort int
 
 const (

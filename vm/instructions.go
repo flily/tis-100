@@ -36,6 +36,7 @@ const (
 	OpJGZ
 	OpJLZ
 	OpJRO
+	OpHCF // HCF is hidden instruction, not documented in the manual, use to get archivement.
 
 	OprandRegister OprandType = 1
 	OprandLabel    OprandType = 2
@@ -75,6 +76,7 @@ var (
 		OpJGZ:   "JGZ",
 		OpJLZ:   "JLZ",
 		OpJRO:   "JRO",
+		OpHCF:   "HCF",
 	}
 	opcodeAcceptOprands = map[Opcode][]OprandType{
 		OpMOV: {OprandRegister | OprandValue, OprandRegister | OprandValue},
