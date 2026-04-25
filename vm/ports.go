@@ -55,11 +55,11 @@ func (p *ValuePort) Write(v Value) bool {
 }
 
 type IOPortEnd struct {
-	in  *ValuePort
-	out *ValuePort
+	in  IOPort
+	out IOPort
 }
 
-func NewIOPortEnd(in *ValuePort, out *ValuePort) *IOPortEnd {
+func NewIOPortEnd(in IOPort, out IOPort) *IOPortEnd {
 	e := &IOPortEnd{
 		in:  in,
 		out: out,
@@ -77,11 +77,20 @@ func (e *IOPortEnd) Write(v Value) bool {
 }
 
 type IOPipe struct {
-	p1 *ValuePort
-	p2 *ValuePort
+	p1 IOPort
+	p2 IOPort
 }
 
-func NewIOPipe() *IOPipe {
+func NewOneWayPipe() *IOPipe {
+	p := &IOPipe{
+		p1: NewValuePort(),
+		p2: NilPort,
+	}
+
+	return p
+}
+
+func NewRoundWayPipe() *IOPipe {
 	p := &IOPipe{
 		p1: NewValuePort(),
 		p2: NewValuePort(),
@@ -90,9 +99,10 @@ func NewIOPipe() *IOPipe {
 	return p
 }
 
-func (p *IOPipe) Ends() (IOPort, IOPort) {
+func (p *IOPipe) Ports() (IOPort, IOPort) {
 	e1 := NewIOPortEnd(p.p1, p.p2)
 	e2 := NewIOPortEnd(p.p2, p.p1)
 
+	// write port is e1, read port is e2
 	return e1, e2
 }

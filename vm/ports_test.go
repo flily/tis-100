@@ -73,9 +73,9 @@ func TestValuePort(t *testing.T) {
 }
 
 func TestIOPipe(t *testing.T) {
-	pipe := NewIOPipe()
+	pipe := NewRoundWayPipe()
 
-	p1, p2 := pipe.Ends()
+	p1, p2 := pipe.Ports()
 
 	{
 		ok := p1.Write(42)
