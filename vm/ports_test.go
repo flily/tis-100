@@ -66,10 +66,22 @@ func TestValuePort(t *testing.T) {
 	// write to busy port
 	ok = p.Write(100)
 	if ok {
-		t.Errorf("ValuePort should reject write when ready")
+		t.Errorf("ValuePort should reject write when busy")
 	}
 
-	// Read from port
+	// Read from busy port
+	v, ok = p.Read()
+	if ok {
+		t.Errorf("ValuePort should return false for read when busy")
+	}
+
+	if v != 0 {
+		t.Errorf("ValuePort should return the stored value for read, expect 0, got %d", v)
+	}
+
+	p.WriteDone()
+
+	// Read from ready port
 	v, ok = p.Read()
 	if !ok {
 		t.Errorf("ValuePort should return true for read when ready")
@@ -102,6 +114,17 @@ func TestIOPipe(t *testing.T) {
 		}
 
 		v, ok := p2.Read()
+		if ok {
+			t.Errorf("p2 should return false for read when busy")
+		}
+
+		if v != 0 {
+			t.Errorf("p2 should return 0 for read when busy, got %d", v)
+		}
+
+		p1.WriteDone()
+
+		v, ok = p2.Read()
 		if !ok {
 			t.Errorf("p2 should return true for read when ready")
 		}
@@ -118,6 +141,17 @@ func TestIOPipe(t *testing.T) {
 		}
 
 		v, ok := p1.Read()
+		if ok {
+			t.Errorf("p1 should return false for read when busy")
+		}
+
+		if v != 0 {
+			t.Errorf("p1 should return 0 for read when busy, got %d", v)
+		}
+
+		p2.WriteDone()
+
+		v, ok = p1.Read()
 		if !ok {
 			t.Errorf("p1 should return true for read when ready")
 		}

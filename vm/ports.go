@@ -2,8 +2,15 @@ package vm
 
 type IOMode int
 
+type IOPort interface {
+	Read() (Value, bool)
+	Write(value Value) bool
+	WriteDone()
+}
+
 const (
 	IOModeIdle IOMode = iota
+	IOModeBusy
 	IOModeReady
 )
 
@@ -35,6 +42,9 @@ func (p ConstPort) Write(_ Value) bool {
 	return true
 }
 
+func (p ConstPort) WriteDone() {
+}
+
 type ValuePort struct {
 	Value Value
 	State IOMode
@@ -44,6 +54,15 @@ func NewValuePort() *ValuePort {
 	p := &ValuePort{
 		Value: 0,
 		State: IOModeIdle,
+	}
+
+	return p
+}
+
+func NewValuePortWithValue(v Value) *ValuePort {
+	p := &ValuePort{
+		Value: v,
+		State: IOModeReady,
 	}
 
 	return p
@@ -61,11 +80,17 @@ func (p *ValuePort) Read() (Value, bool) {
 func (p *ValuePort) Write(v Value) bool {
 	if p.State == IOModeIdle {
 		p.Value = v
-		p.State = IOModeReady
+		p.State = IOModeBusy
 		return true
 	}
 
 	return false
+}
+
+func (p *ValuePort) WriteDone() {
+	if p.State == IOModeBusy {
+		p.State = IOModeReady
+	}
 }
 
 type IOPortEnd struct {
@@ -88,6 +113,10 @@ func (e *IOPortEnd) Read() (Value, bool) {
 
 func (e *IOPortEnd) Write(v Value) bool {
 	return e.in.Write(v)
+}
+
+func (e *IOPortEnd) WriteDone() {
+	e.in.WriteDone()
 }
 
 type IOPipe struct {
