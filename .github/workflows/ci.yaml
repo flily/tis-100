@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: setup go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.22
+          cache: false
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Lint with golangci-lint
+        uses: golangci/golangci-lint-action@v7
+
+  run:
+    name: Run unit tests and coverage tests
+    needs:
+      - lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: 1.22
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Unit test
+      run: go test -v ./...
+
+    - name: Coverage test
+      run: go test -covermode=count -coverprofile=coverage.txt ./...
+
+    - uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.txt
+        fail_ci_if_error: true
+        verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
