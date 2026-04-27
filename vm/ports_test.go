@@ -59,8 +59,8 @@ func TestValuePort(t *testing.T) {
 		t.Errorf("ValuePort should accept write when idle")
 	}
 
-	if p.Value != 42 {
-		t.Errorf("ValuePort should store the written value, expect 42, got %d", p.Value)
+	if p.Value() != 42 {
+		t.Errorf("ValuePort should store the written value, expect 42, got %d", p.Value())
 	}
 
 	// write to busy port

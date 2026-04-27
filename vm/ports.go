@@ -2,23 +2,33 @@ package vm
 
 type IOMode int
 
-type IOPort interface {
-	Read() (Value, bool)
-	Write(value Value) bool
-	WriteDone()
-}
-
 const (
 	IOModeIdle IOMode = iota
 	IOModeBusy
 	IOModeReady
 )
 
+type IOPort interface {
+	Value() Value
+	Mode() IOMode
+	Read() (Value, bool)
+	Write(value Value) bool
+	WriteDone()
+}
+
 type BlockPort int
 
 const (
 	InvalidPort BlockPort = 0
 )
+
+func (p BlockPort) Value() Value {
+	return Value(0)
+}
+
+func (p BlockPort) Mode() IOMode {
+	return IOModeBusy
+}
 
 func (p BlockPort) Read() (Value, bool) {
 	return Value(0), false
@@ -28,11 +38,22 @@ func (p BlockPort) Write(_ Value) bool {
 	return false
 }
 
+func (p BlockPort) WriteDone() {
+}
+
 type ConstPort int
 
 const (
 	NilPort ConstPort = 0
 )
+
+func (p ConstPort) Value() Value {
+	return Value(p)
+}
+
+func (p ConstPort) Mode() IOMode {
+	return IOModeReady
+}
 
 func (p ConstPort) Read() (Value, bool) {
 	return Value(p), true
@@ -46,14 +67,14 @@ func (p ConstPort) WriteDone() {
 }
 
 type ValuePort struct {
-	Value Value
-	State IOMode
+	value Value
+	state IOMode
 }
 
 func NewValuePort() *ValuePort {
 	p := &ValuePort{
-		Value: 0,
-		State: IOModeIdle,
+		value: 0,
+		state: IOModeIdle,
 	}
 
 	return p
@@ -61,26 +82,34 @@ func NewValuePort() *ValuePort {
 
 func NewValuePortWithValue(v Value) *ValuePort {
 	p := &ValuePort{
-		Value: v,
-		State: IOModeReady,
+		value: v,
+		state: IOModeReady,
 	}
 
 	return p
 }
 
+func (p *ValuePort) Value() Value {
+	return p.value
+}
+
+func (p *ValuePort) Mode() IOMode {
+	return p.state
+}
+
 func (p *ValuePort) Read() (Value, bool) {
-	if p.State == IOModeReady {
-		p.State = IOModeIdle
-		return p.Value, true
+	if p.state == IOModeReady {
+		p.state = IOModeIdle
+		return p.value, true
 	}
 
 	return Value(0), false
 }
 
 func (p *ValuePort) Write(v Value) bool {
-	if p.State == IOModeIdle {
-		p.Value = v
-		p.State = IOModeBusy
+	if p.state == IOModeIdle {
+		p.value = v
+		p.state = IOModeBusy
 		return true
 	}
 
@@ -88,8 +117,8 @@ func (p *ValuePort) Write(v Value) bool {
 }
 
 func (p *ValuePort) WriteDone() {
-	if p.State == IOModeBusy {
-		p.State = IOModeReady
+	if p.state == IOModeBusy {
+		p.state = IOModeReady
 	}
 }
 
@@ -105,6 +134,14 @@ func NewIOPortEnd(in IOPort, out IOPort) *IOPortEnd {
 	}
 
 	return e
+}
+
+func (e *IOPortEnd) Value() Value {
+	return e.out.Value()
+}
+
+func (e *IOPortEnd) Mode() IOMode {
+	return e.out.Mode()
 }
 
 func (e *IOPortEnd) Read() (Value, bool) {
