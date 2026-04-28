@@ -8,9 +8,10 @@ import (
 )
 
 type exeNodeTestCase struct {
-	ins        string
+	code       string
 	acc        Value
 	bak        Value
+	ip         int
 	mode       ExecutionMode
 	ports      []IOPort
 	portsValue []Value
@@ -18,11 +19,13 @@ type exeNodeTestCase struct {
 
 type exeNodeTestCases []exeNodeTestCase
 
-func (cases exeNodeTestCases) Run(t *testing.T, acc Value, bak Value) {
+func (cases exeNodeTestCases) Run(t *testing.T, ip int, acc Value, bak Value) {
+	t.Helper()
+
 	node := NewExecutionNode()
 
 	for _, c := range cases {
-		if i, err := node.LoadCode(c.ins); err != nil {
+		if i, err := node.LoadCode(c.code); err != nil {
 			t.Fatalf("LoadCode failed at instruction %d: %v", i, err)
 		}
 
@@ -33,7 +36,7 @@ func (cases exeNodeTestCases) Run(t *testing.T, acc Value, bak Value) {
 			node.LoadPorts(c.ports)
 		}
 
-		err := node.Step()
+		err, _ := node.Step()
 		if err != nil {
 			t.Fatalf("Step failed: %v", err)
 		}
@@ -44,6 +47,10 @@ func (cases exeNodeTestCases) Run(t *testing.T, acc Value, bak Value) {
 
 		if node.Backup != c.bak {
 			t.Errorf("Instruction failed: expect Backup %d, got %d", c.bak, node.Backup)
+		}
+
+		if node.IP != c.ip {
+			t.Errorf("Instruction failed: expect IP %d, got %d", c.ip, node.IP)
 		}
 
 		if node.Mode != c.mode {
@@ -81,6 +88,10 @@ func portsWithData(v1 Value, v2 Value, v3 Value, v4 Value) []IOPort {
 	}
 
 	return ports
+}
+
+func codeLines(lines ...string) string {
+	return strings.Join(lines, "\n")
 }
 
 func TestNodePortsRead(t *testing.T) {
@@ -200,16 +211,106 @@ func TestExecutionNodeLoadCode(t *testing.T) {
 	}
 }
 
+func TestExecutionNodeLoadLabels(t *testing.T) {
+	code := strings.Join([]string{
+		"NOP",       // 0
+		"LAB1:",     // 1
+		"LAB2: NOP", // 2
+		"NOP",       // 3
+		"",          // 4
+		"LAB3:",     // 5
+		"NOP",       // 6
+	}, "\n")
+
+	node := NewExecutionNode()
+	if i, err := node.LoadCode(code); err != nil {
+		t.Errorf("LoadCode failed at instruction %d: %v", i, err)
+	}
+
+	expectedLabels := map[Label]int{
+		"LAB1": 1,
+		"LAB2": 2,
+		"LAB3": 5,
+	}
+
+	gotLabels := node.GetLabels()
+	if len(gotLabels) != len(expectedLabels) {
+		t.Errorf("LoadLabels failure: expect %d labels, got %d", len(expectedLabels), len(gotLabels))
+	}
+
+	for label, idx := range expectedLabels {
+		if node.GetLabel(label) != idx {
+			t.Errorf("LoadLabels failure: expect label '%s' at instruction %d, got %d", label, idx, node.GetLabel(label))
+		}
+	}
+
+	if idx := node.GetLabel("LOREM"); idx != -1 {
+		t.Errorf("LoadLabels failure: expect label 'LOREM' not found, got index %d", idx)
+	}
+}
+
+func TestExecutionNodeStep(t *testing.T) {
+	code := strings.Join([]string{
+		"NOP",
+		"NOP",
+		"NOP",
+	}, "\n")
+
+	node := NewExecutionNode()
+	if i, err := node.LoadCode(code); err != nil {
+		t.Errorf("LoadCode failed at instruction %d: %v", i, err)
+	}
+
+	err, looped := node.Step()
+	if err != nil {
+		t.Errorf("Step failed: %v", err)
+	}
+
+	if looped {
+		t.Errorf("Step should not loop when there are more instructions")
+	}
+
+	if node.IP != 1 {
+		t.Errorf("Step failure: expect IP 1, got %d", node.IP)
+	}
+
+	err, looped = node.Step()
+	if err != nil {
+		t.Errorf("Step failed: %v", err)
+	}
+
+	if looped {
+		t.Errorf("Step should not loop when there are more instructions")
+	}
+
+	if node.IP != 2 {
+		t.Errorf("Step failure: expect IP 2, got %d", node.IP)
+	}
+
+	err, looped = node.Step()
+	if err != nil {
+		t.Errorf("Step failed: %v", err)
+	}
+
+	if !looped {
+		t.Errorf("Step should loop when reaching the end of instructions")
+	}
+
+	if node.IP != 0 {
+		t.Errorf("Step failure: expect IP 0 after looping, got %d", node.IP)
+	}
+}
+
 func TestExecutionNodeOpNop(t *testing.T) {
 	defaultAcc := Value(13)
 	exeNodeTestCases{
 		{
-			ins:  "NOP",
+			code: "NOP",
 			acc:  defaultAcc,
 			bak:  0,
 			mode: ModeIdle,
 		},
-	}.Run(t, defaultAcc, 0)
+	}.Run(t, 0, defaultAcc, 0)
 }
 
 func TestExecutionNodeOpMovBasicIO(t *testing.T) {
@@ -217,13 +318,13 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 
 	exeNodeTestCases{
 		{
-			ins:  "MOV 42, ACC",
+			code: "MOV 42, ACC",
 			acc:  42,
 			bak:  0,
 			mode: ModeIdle,
 		},
 		{
-			ins:        "MOV ACC, UP",
+			code:       "MOV ACC, UP",
 			acc:        13,
 			bak:        0,
 			mode:       ModeIdle,
@@ -231,7 +332,7 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			portsValue: []Value{13, 0, 0, 0},
 		},
 		{
-			ins:   "MOV ACC, LEFT",
+			code:  "MOV ACC, LEFT",
 			acc:   13,
 			bak:   0,
 			mode:  ModeIdle,
@@ -240,7 +341,7 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			portsValue: []Value{0, 13, 0, 0},
 		},
 		{
-			ins:        "MOV ACC, RIGHT",
+			code:       "MOV ACC, RIGHT",
 			acc:        13,
 			bak:        0,
 			mode:       ModeIdle,
@@ -248,7 +349,7 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			portsValue: []Value{0, 0, 13, 0},
 		},
 		{
-			ins:        "MOV ACC, DOWN",
+			code:       "MOV ACC, DOWN",
 			acc:        13,
 			bak:        0,
 			mode:       ModeIdle,
@@ -256,7 +357,7 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			portsValue: []Value{0, 0, 0, 13},
 		},
 		{
-			ins:        "MOV UP, ACC",
+			code:       "MOV UP, ACC",
 			acc:        3,
 			bak:        0,
 			mode:       ModeIdle,
@@ -264,7 +365,7 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:        "MOV LEFT, ACC",
+			code:       "MOV LEFT, ACC",
 			acc:        5,
 			bak:        0,
 			mode:       ModeIdle,
@@ -272,7 +373,7 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:        "MOV RIGHT, ACC",
+			code:       "MOV RIGHT, ACC",
 			acc:        7,
 			bak:        0,
 			mode:       ModeIdle,
@@ -280,14 +381,14 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:        "MOV DOWN, ACC",
+			code:       "MOV DOWN, ACC",
 			acc:        11,
 			bak:        0,
 			mode:       ModeIdle,
 			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
-	}.Run(t, defaultAcc, 0)
+	}.Run(t, 0, defaultAcc, 0)
 }
 
 func TestExecutionNodeOpMovBlocking(t *testing.T) {
@@ -295,7 +396,7 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 
 	exeNodeTestCases{
 		{
-			ins:        "MOV UP, ACC",
+			code:       "MOV UP, ACC",
 			acc:        13,
 			bak:        0,
 			mode:       ModeRead,
@@ -303,7 +404,7 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:        "MOV LEFT, ACC",
+			code:       "MOV LEFT, ACC",
 			acc:        13,
 			bak:        0,
 			mode:       ModeRead,
@@ -311,7 +412,7 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:        "MOV RIGHT, ACC",
+			code:       "MOV RIGHT, ACC",
 			acc:        13,
 			bak:        0,
 			mode:       ModeRead,
@@ -319,7 +420,7 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:        "MOV DOWN, ACC",
+			code:       "MOV DOWN, ACC",
 			acc:        13,
 			bak:        0,
 			mode:       ModeRead,
@@ -327,7 +428,7 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:        "MOV ACC, UP",
+			code:       "MOV ACC, UP",
 			acc:        13,
 			bak:        0,
 			mode:       ModeWrite,
@@ -335,7 +436,7 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:        "MOV ACC, LEFT",
+			code:       "MOV ACC, LEFT",
 			acc:        13,
 			bak:        0,
 			mode:       ModeWrite,
@@ -343,7 +444,7 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:        "MOV ACC, RIGHT",
+			code:       "MOV ACC, RIGHT",
 			acc:        13,
 			bak:        0,
 			mode:       ModeWrite,
@@ -351,14 +452,14 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:        "MOV ACC, DOWN",
+			code:       "MOV ACC, DOWN",
 			acc:        13,
 			bak:        0,
 			mode:       ModeWrite,
 			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
-	}.Run(t, defaultAcc, 0)
+	}.Run(t, 0, defaultAcc, 0)
 }
 
 func TestExecutionNodeOpSwp(t *testing.T) {
@@ -367,12 +468,12 @@ func TestExecutionNodeOpSwp(t *testing.T) {
 
 	exeNodeTestCases{
 		{
-			ins:  "SWP",
+			code: "SWP",
 			acc:  defaultBak,
 			bak:  defaultAcc,
 			mode: ModeIdle,
 		},
-	}.Run(t, defaultAcc, defaultBak)
+	}.Run(t, 0, defaultAcc, defaultBak)
 }
 
 func TestExecutionNodeOpSav(t *testing.T) {
@@ -381,12 +482,12 @@ func TestExecutionNodeOpSav(t *testing.T) {
 
 	exeNodeTestCases{
 		{
-			ins:  "SAV",
+			code: "SAV",
 			acc:  defaultAcc,
 			bak:  defaultAcc,
 			mode: ModeIdle,
 		},
-	}.Run(t, defaultAcc, defaultBak)
+	}.Run(t, 0, defaultAcc, defaultBak)
 }
 
 func TestExecutionNodeOpAdd(t *testing.T) {
@@ -394,24 +495,24 @@ func TestExecutionNodeOpAdd(t *testing.T) {
 
 	exeNodeTestCases{
 		{
-			ins:  "ADD 42",
+			code: "ADD 42",
 			acc:  defaultAcc + 42,
 			bak:  0,
 			mode: ModeIdle,
 		},
 		{
-			ins:  "ADD 990",
+			code: "ADD 990",
 			acc:  ValueMax,
 			bak:  0,
 			mode: ModeIdle,
 		},
 		{
-			ins:  "ADD -42",
+			code: "ADD -42",
 			acc:  defaultAcc - 42,
 			bak:  0,
 			mode: ModeIdle,
 		},
-	}.Run(t, defaultAcc, 0)
+	}.Run(t, 0, defaultAcc, 0)
 }
 
 func TestExecutionNodeOpSub(t *testing.T) {
@@ -419,24 +520,24 @@ func TestExecutionNodeOpSub(t *testing.T) {
 
 	exeNodeTestCases{
 		{
-			ins:  "SUB 42",
+			code: "SUB 42",
 			acc:  defaultAcc - 42,
 			bak:  0,
 			mode: ModeIdle,
 		},
 		{
-			ins:  "SUB 990",
+			code: "SUB 990",
 			acc:  ValueMin,
 			bak:  0,
 			mode: ModeIdle,
 		},
 		{
-			ins:  "SUB -42",
+			code: "SUB -42",
 			acc:  defaultAcc + 42,
 			bak:  0,
 			mode: ModeIdle,
 		},
-	}.Run(t, defaultAcc, 0)
+	}.Run(t, 0, defaultAcc, 0)
 }
 
 func TestExecutionNodeOpNeg(t *testing.T) {
@@ -444,10 +545,187 @@ func TestExecutionNodeOpNeg(t *testing.T) {
 
 	exeNodeTestCases{
 		{
-			ins:  "NEG",
+			code: "NEG",
 			acc:  -defaultAcc,
 			bak:  0,
 			mode: ModeIdle,
 		},
-	}.Run(t, defaultAcc, 0)
+	}.Run(t, 0, defaultAcc, 0)
+}
+
+func TestExecutionNodeOpJmp(t *testing.T) {
+	defaultAcc := Value(13)
+
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JMP LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  defaultAcc,
+			bak:  0,
+			ip:   2,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, defaultAcc, 0)
+}
+
+func TestExecutionNodeOpJez(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JEZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   2,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 0, 0)
+
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JEZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  42,
+			bak:  0,
+			ip:   1,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 42, 0)
+}
+
+func TestExecutionNodeOpJnz(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JNZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   1,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 0, 0)
+
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JNZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  42,
+			bak:  0,
+			ip:   2,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 42, 0)
+}
+
+func TestExecutionNodeOpJgz(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JGZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   1,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 0, 0)
+
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JGZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  42,
+			bak:  0,
+			ip:   2,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 42, 0)
+
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JGZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  -42,
+			bak:  0,
+			ip:   1,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, -42, 0)
+}
+
+func TestExecutionNodeOpJlz(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JLZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   1,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 0, 0)
+
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JLZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  42,
+			bak:  0,
+			ip:   1,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 42, 0)
+
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"JLZ LAB2",
+				"LAB1: NOP",
+				"LAB2: NOP",
+				"LAB3: NOP",
+			),
+			acc:  -42,
+			bak:  0,
+			ip:   2,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, -42, 0)
 }

@@ -143,6 +143,10 @@ func (n *BasicExecutionNode) checkLabels() (int, error) {
 	return -1, nil
 }
 
+func (n *BasicExecutionNode) GetLabels() map[Label]int {
+	return n.labels
+}
+
 func (n *BasicExecutionNode) LoadLabels() (int, error) {
 	n.labels = make(map[Label]int)
 
@@ -157,10 +161,18 @@ func (n *BasicExecutionNode) LoadLabels() (int, error) {
 			return i, ins.LabelCtx.Error(errFormatDuplicateLabel)
 		}
 
-		n.labels[label] = len(n.labels)
+		n.labels[label] = i
 	}
 
 	return n.checkLabels()
+}
+
+func (n *BasicExecutionNode) GetLabel(label Label) int {
+	if idx, found := n.labels[label]; found {
+		return idx
+	}
+
+	return -1
 }
 
 func (n *BasicExecutionNode) Load(instructions Code) (int, error) {
@@ -237,23 +249,36 @@ func (n *BasicExecutionNode) WriteValue(reg Register, v Value) bool {
 	}
 }
 
-func (n *BasicExecutionNode) nextIP() Instruction {
+func (n *BasicExecutionNode) nextIP() (Instruction, bool) {
+	looped := false
 	for range len(n.Codes) {
-		n.IP = (n.IP + 1) % len(n.Codes)
+		n.IP = n.IP + 1
+		if n.IP >= len(n.Codes) {
+			n.IP = 0
+			looped = true
+		}
+
 		inst := n.Codes[n.IP]
 		if inst.Opcode != OpEmpty {
-			return inst
+			return inst, looped
 		}
 	}
 
 	// Empty code segment.
-	return InvalidInstruction
+	return InvalidInstruction, looped
 }
 
-func (n *BasicExecutionNode) Step() error {
+func (n *BasicExecutionNode) setIPToLabel(label Label) int {
+	// Label is checked in LoadLabels, so it must exist.
+	nextIP := n.labels[label]
+	n.IP = nextIP
+	return nextIP
+}
+
+func (n *BasicExecutionNode) Step() (error, bool) {
 	inst := n.Codes[n.IP]
-	n.nextIP()
-	return n.RunInst(inst)
+	_, looped := n.nextIP()
+	return n.RunInst(inst), looped
 }
 
 func (n *BasicExecutionNode) RunInst(inst Instruction) error {
@@ -301,8 +326,34 @@ func (n *BasicExecutionNode) RunInst(inst Instruction) error {
 	case OpNEG:
 		n.Acc = -n.Acc
 
+	case OpJMP:
+		label := inst.Oprand1.(Label)
+		n.setIPToLabel(label)
+
+	case OpJEZ:
+		if n.Acc == 0 {
+			label := inst.Oprand1.(Label)
+			n.setIPToLabel(label)
+		}
+
+	case OpJNZ:
+		if n.Acc != 0 {
+			label := inst.Oprand1.(Label)
+			n.setIPToLabel(label)
+		}
+
+	case OpJGZ:
+		if n.Acc > 0 {
+			label := inst.Oprand1.(Label)
+			n.setIPToLabel(label)
+		}
+
+	case OpJLZ:
+		if n.Acc < 0 {
+			label := inst.Oprand1.(Label)
+			n.setIPToLabel(label)
+		}
 	}
 
-	n.IP += 1
 	return nil
 }
