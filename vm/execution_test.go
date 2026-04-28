@@ -7,6 +7,37 @@ import (
 	"strings"
 )
 
+type exeNodeTestCase struct {
+	ins        string
+	acc        Value
+	bak        Value
+	mode       ExecutionMode
+	ports      []IOPort
+	portsValue []Value
+}
+
+func noPortsData() []IOPort {
+	ports := []IOPort{
+		NewValuePort(),
+		NewValuePort(),
+		NewValuePort(),
+		NewValuePort(),
+	}
+
+	return ports
+}
+
+func portsWithData(v1 Value, v2 Value, v3 Value, v4 Value) []IOPort {
+	ports := []IOPort{
+		NewValuePortWithValue(v1),
+		NewValuePortWithValue(v2),
+		NewValuePortWithValue(v3),
+		NewValuePortWithValue(v4),
+	}
+
+	return ports
+}
+
 func TestNodePortsRead(t *testing.T) {
 	ports := NewNodePorts()
 	ports.Ports = [4]IOPort{
@@ -128,14 +159,7 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 	node := NewExecutionNode()
 	defaultAcc := Value(13)
 
-	cases := []struct {
-		ins        string
-		acc        Value
-		bak        Value
-		mode       ExecutionMode
-		ports      []IOPort
-		portsValue []Value
-	}{
+	cases := []exeNodeTestCase{
 		{
 			ins:  "MOV 42, ACC",
 			acc:  42,
@@ -143,107 +167,68 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			mode: ModeIdle,
 		},
 		{
-			ins:  "MOV ACC, UP",
-			acc:  13,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:        "MOV ACC, UP",
+			acc:        13,
+			bak:        0,
+			mode:       ModeIdle,
+			ports:      noPortsData(),
 			portsValue: []Value{13, 0, 0, 0},
 		},
 		{
-			ins:  "MOV ACC, LEFT",
-			acc:  13,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:   "MOV ACC, LEFT",
+			acc:   13,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: noPortsData(),
+
 			portsValue: []Value{0, 13, 0, 0},
 		},
 		{
-			ins:  "MOV ACC, RIGHT",
-			acc:  13,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:        "MOV ACC, RIGHT",
+			acc:        13,
+			bak:        0,
+			mode:       ModeIdle,
+			ports:      noPortsData(),
 			portsValue: []Value{0, 0, 13, 0},
 		},
 		{
-			ins:  "MOV ACC, DOWN",
-			acc:  13,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:        "MOV ACC, DOWN",
+			acc:        13,
+			bak:        0,
+			mode:       ModeIdle,
+			ports:      noPortsData(),
 			portsValue: []Value{0, 0, 0, 13},
 		},
 		{
-			ins:  "MOV UP, ACC",
-			acc:  3,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV UP, ACC",
+			acc:        3,
+			bak:        0,
+			mode:       ModeIdle,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:  "MOV LEFT, ACC",
-			acc:  5,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV LEFT, ACC",
+			acc:        5,
+			bak:        0,
+			mode:       ModeIdle,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:  "MOV RIGHT, ACC",
-			acc:  7,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV RIGHT, ACC",
+			acc:        7,
+			bak:        0,
+			mode:       ModeIdle,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:  "MOV DOWN, ACC",
-			acc:  11,
-			bak:  0,
-			mode: ModeIdle,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV DOWN, ACC",
+			acc:        11,
+			bak:        0,
+			mode:       ModeIdle,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 	}
@@ -291,116 +276,69 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 	node := NewExecutionNode()
 	defaultAcc := Value(13)
 
-	cases := []struct {
-		ins        string
-		acc        Value
-		bak        Value
-		mode       ExecutionMode
-		ports      []IOPort
-		portsValue []Value
-	}{
+	cases := []exeNodeTestCase{
 		{
-			ins:  "MOV UP, ACC",
-			acc:  13,
-			bak:  0,
-			mode: ModeRead,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:        "MOV UP, ACC",
+			acc:        13,
+			bak:        0,
+			mode:       ModeRead,
+			ports:      noPortsData(),
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:  "MOV LEFT, ACC",
-			acc:  13,
-			bak:  0,
-			mode: ModeRead,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:        "MOV LEFT, ACC",
+			acc:        13,
+			bak:        0,
+			mode:       ModeRead,
+			ports:      noPortsData(),
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:  "MOV RIGHT, ACC",
-			acc:  13,
-			bak:  0,
-			mode: ModeRead,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:        "MOV RIGHT, ACC",
+			acc:        13,
+			bak:        0,
+			mode:       ModeRead,
+			ports:      noPortsData(),
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:  "MOV DOWN, ACC",
-			acc:  13,
-			bak:  0,
-			mode: ModeRead,
-			ports: []IOPort{
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-				NewValuePort(),
-			},
+			ins:        "MOV DOWN, ACC",
+			acc:        13,
+			bak:        0,
+			mode:       ModeRead,
+			ports:      noPortsData(),
 			portsValue: []Value{0, 0, 0, 0},
 		},
 		{
-			ins:  "MOV ACC, UP",
-			acc:  13,
-			bak:  0,
-			mode: ModeWrite,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV ACC, UP",
+			acc:        13,
+			bak:        0,
+			mode:       ModeWrite,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:  "MOV ACC, LEFT",
-			acc:  13,
-			bak:  0,
-			mode: ModeWrite,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV ACC, LEFT",
+			acc:        13,
+			bak:        0,
+			mode:       ModeWrite,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:  "MOV ACC, RIGHT",
-			acc:  13,
-			bak:  0,
-			mode: ModeWrite,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV ACC, RIGHT",
+			acc:        13,
+			bak:        0,
+			mode:       ModeWrite,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 		{
-			ins:  "MOV ACC, DOWN",
-			acc:  13,
-			bak:  0,
-			mode: ModeWrite,
-			ports: []IOPort{
-				NewValuePortWithValue(3),
-				NewValuePortWithValue(5),
-				NewValuePortWithValue(7),
-				NewValuePortWithValue(11),
-			},
+			ins:        "MOV ACC, DOWN",
+			acc:        13,
+			bak:        0,
+			mode:       ModeWrite,
+			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
 	}
