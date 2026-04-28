@@ -251,15 +251,16 @@ func (n *BasicExecutionNode) WriteValue(reg Register, v Value) bool {
 
 func (n *BasicExecutionNode) nextIP() (Instruction, bool) {
 	looped := false
-	for range len(n.Codes) {
+	last := n.Codes.Last()
+	for range last {
 		n.IP = n.IP + 1
-		if n.IP >= len(n.Codes) {
+		if n.IP > last {
 			n.IP = 0
 			looped = true
 		}
 
 		inst := n.Codes[n.IP]
-		if inst.Opcode != OpEmpty {
+		if !inst.Empty() {
 			return inst, looped
 		}
 	}
@@ -268,20 +269,82 @@ func (n *BasicExecutionNode) nextIP() (Instruction, bool) {
 	return InvalidInstruction, looped
 }
 
+func (n *BasicExecutionNode) prevIP() (Instruction, bool) {
+	looped := false
+	last := n.Codes.Last()
+	for range last {
+		n.IP = n.IP - 1
+		if n.IP < 0 {
+			n.IP = last
+			looped = true
+		}
+
+		inst := n.Codes[n.IP]
+		if !inst.Empty() {
+			return inst, looped
+		}
+	}
+
+	// Empty code segment.
+	return InvalidInstruction, looped
+}
+
+func (n *BasicExecutionNode) jro(offset int) {
+	eoc := false
+
+	if offset == 0 {
+		return
+	}
+
+	if offset > 0 {
+		for range offset {
+			_, looped := n.nextIP()
+			if looped {
+				eoc = true
+				break
+			}
+		}
+
+		if eoc {
+			n.IP = n.Codes.Last()
+		}
+
+	} else {
+		for range -offset {
+			_, looped := n.prevIP()
+			if looped {
+				eoc = true
+				break
+			}
+		}
+
+		if eoc {
+			n.IP = n.Codes.First()
+		}
+	}
+}
+
 func (n *BasicExecutionNode) setIPToLabel(label Label) int {
 	// Label is checked in LoadLabels, so it must exist.
 	nextIP := n.labels[label]
 	n.IP = nextIP
+
 	return nextIP
 }
 
-func (n *BasicExecutionNode) Step() (error, bool) {
+func (n *BasicExecutionNode) Step() (bool, bool) {
 	inst := n.Codes[n.IP]
-	_, looped := n.nextIP()
-	return n.RunInst(inst), looped
+	looped := false
+	moveForward := n.RunInst(inst)
+	if moveForward {
+		_, looped = n.nextIP()
+	}
+
+	return moveForward, looped
 }
 
-func (n *BasicExecutionNode) RunInst(inst Instruction) error {
+func (n *BasicExecutionNode) RunInst(inst Instruction) bool {
+	moveForward := true
 	switch inst.Opcode {
 	case OpNOP:
 		// Do nothing
@@ -290,12 +353,14 @@ func (n *BasicExecutionNode) RunInst(inst Instruction) error {
 		o1, ok := n.FetchValue(inst.Oprand1)
 		if !ok {
 			n.Mode = ModeRead
+			moveForward = false
 			break
 		}
 
 		ok = n.WriteValue(inst.Oprand2.(Register), o1)
 		if !ok {
 			n.Mode = ModeWrite
+			moveForward = false
 			break
 		}
 
@@ -309,6 +374,7 @@ func (n *BasicExecutionNode) RunInst(inst Instruction) error {
 		o1, ok := n.FetchValue(inst.Oprand1)
 		if !ok {
 			n.Mode = ModeRead
+			moveForward = false
 			break
 		}
 
@@ -318,6 +384,7 @@ func (n *BasicExecutionNode) RunInst(inst Instruction) error {
 		o1, ok := n.FetchValue(inst.Oprand1)
 		if !ok {
 			n.Mode = ModeRead
+			moveForward = false
 			break
 		}
 
@@ -328,32 +395,47 @@ func (n *BasicExecutionNode) RunInst(inst Instruction) error {
 
 	case OpJMP:
 		label := inst.Oprand1.(Label)
+		moveForward = false
 		n.setIPToLabel(label)
 
 	case OpJEZ:
 		if n.Acc == 0 {
 			label := inst.Oprand1.(Label)
+			moveForward = false
 			n.setIPToLabel(label)
 		}
 
 	case OpJNZ:
 		if n.Acc != 0 {
 			label := inst.Oprand1.(Label)
+			moveForward = false
 			n.setIPToLabel(label)
 		}
 
 	case OpJGZ:
 		if n.Acc > 0 {
 			label := inst.Oprand1.(Label)
+			moveForward = false
 			n.setIPToLabel(label)
 		}
 
 	case OpJLZ:
 		if n.Acc < 0 {
 			label := inst.Oprand1.(Label)
+			moveForward = false
 			n.setIPToLabel(label)
 		}
+
+	case OpJRO:
+		moveForward = false
+		offset, ok := n.FetchValue(inst.Oprand1)
+		if !ok {
+			n.Mode = ModeRead
+			break
+		}
+
+		n.jro(int(offset))
 	}
 
-	return nil
+	return moveForward
 }

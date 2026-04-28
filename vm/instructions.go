@@ -367,3 +367,23 @@ func (c Code) Equals(o Code) bool {
 
 	return true
 }
+
+func (c Code) First() int {
+	for i, ins := range c {
+		if !ins.Empty() {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func (c Code) Last() int {
+	for i := len(c) - 1; i >= 0; i-- {
+		if !c[i].Empty() {
+			return i
+		}
+	}
+
+	return -1
+}

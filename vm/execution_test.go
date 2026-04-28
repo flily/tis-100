@@ -31,15 +31,13 @@ func (cases exeNodeTestCases) Run(t *testing.T, ip int, acc Value, bak Value) {
 
 		node.Acc = acc
 		node.Backup = bak
+		node.IP = ip
 
 		if c.ports != nil {
 			node.LoadPorts(c.ports)
 		}
 
-		err, _ := node.Step()
-		if err != nil {
-			t.Fatalf("Step failed: %v", err)
-		}
+		node.Step()
 
 		if node.Acc != c.acc {
 			t.Errorf("Instruction failed: expect Acc %d, got %d", c.acc, node.Acc)
@@ -57,7 +55,7 @@ func (cases exeNodeTestCases) Run(t *testing.T, ip int, acc Value, bak Value) {
 			t.Errorf("Instruction failed: expect Mode %v, got %v", c.mode, node.Mode)
 		}
 
-		if c.ports != nil {
+		if c.portsValue != nil {
 			got := node.Snapshot()
 			if !slices.Equal(got, c.portsValue) {
 				t.Errorf("Instruction failed: ports not as expected")
@@ -261,9 +259,9 @@ func TestExecutionNodeStep(t *testing.T) {
 		t.Errorf("LoadCode failed at instruction %d: %v", i, err)
 	}
 
-	err, looped := node.Step()
-	if err != nil {
-		t.Errorf("Step failed: %v", err)
+	moveForward, looped := node.Step()
+	if !moveForward {
+		t.Errorf("Step failed: %v", moveForward)
 	}
 
 	if looped {
@@ -274,9 +272,9 @@ func TestExecutionNodeStep(t *testing.T) {
 		t.Errorf("Step failure: expect IP 1, got %d", node.IP)
 	}
 
-	err, looped = node.Step()
-	if err != nil {
-		t.Errorf("Step failed: %v", err)
+	moveForward, looped = node.Step()
+	if !moveForward {
+		t.Errorf("Step failed: %v", moveForward)
 	}
 
 	if looped {
@@ -287,9 +285,9 @@ func TestExecutionNodeStep(t *testing.T) {
 		t.Errorf("Step failure: expect IP 2, got %d", node.IP)
 	}
 
-	err, looped = node.Step()
-	if err != nil {
-		t.Errorf("Step failed: %v", err)
+	moveForward, looped = node.Step()
+	if !moveForward {
+		t.Errorf("Step failed: %v", moveForward)
 	}
 
 	if !looped {
@@ -728,4 +726,174 @@ func TestExecutionNodeOpJlz(t *testing.T) {
 			mode: ModeIdle,
 		},
 	}.Run(t, 0, -42, 0)
+}
+
+func TestExecutionNodeOpJroMoveForward(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO 1",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   3,
+			mode: ModeIdle,
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO 2",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   4,
+			mode: ModeIdle,
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO 3",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   5,
+			mode: ModeIdle,
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO 4",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   5,
+			mode: ModeIdle,
+		},
+	}.Run(t, 2, 0, 0)
+}
+
+func TestExecutionNodeOpJroMoveBackward(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO -1",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   1,
+			mode: ModeIdle,
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO -2",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   0,
+			mode: ModeIdle,
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO -3",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   0,
+			mode: ModeIdle,
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO 0",
+				"NOP",
+				"NOP",
+			),
+			acc:  0,
+			bak:  0,
+			ip:   2,
+			mode: ModeIdle,
+		},
+	}.Run(t, 2, 0, 0)
+}
+
+func TestExecutionNodeOpJroRegister(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO ACC",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:  2,
+			bak:  0,
+			ip:   4,
+			mode: ModeIdle,
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO UP",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:   2,
+			bak:   0,
+			ip:    5,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code: codeLines(
+				"NOP",
+				"NOP",
+				"JRO UP",
+				"NOP",
+				"NOP",
+				"NOP",
+			),
+			acc:   2,
+			bak:   0,
+			ip:    2,
+			mode:  ModeRead,
+			ports: noPortsData(),
+		},
+	}.Run(t, 2, 2, 0)
 }
