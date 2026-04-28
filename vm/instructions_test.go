@@ -205,6 +205,30 @@ func TestLiteralRange(t *testing.T) {
 	}
 }
 
+func TestValueLimit(t *testing.T) {
+	cases := []struct {
+		value    Value
+		expected Value
+	}{
+		{value: 0, expected: 0},
+		{value: 42, expected: 42},
+		{value: -42, expected: -42},
+		{value: 999, expected: 999},
+		{value: -999, expected: -999},
+		{value: 1000, expected: ValueMax},
+		{value: -1000, expected: ValueMin},
+		{value: 12345, expected: ValueMax},
+		{value: -12345, expected: ValueMin},
+	}
+
+	for _, c := range cases {
+		if c.value.Limit() != c.expected {
+			t.Errorf("Literal %d: expect Limit() to return %d, got %d",
+				c.value, c.expected, c.value.Limit())
+		}
+	}
+}
+
 func TestLiteralEqual(t *testing.T) {
 	cases := []struct {
 		literal  Value

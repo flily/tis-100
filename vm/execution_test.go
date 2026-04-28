@@ -16,6 +16,51 @@ type exeNodeTestCase struct {
 	portsValue []Value
 }
 
+type exeNodeTestCases []exeNodeTestCase
+
+func (cases exeNodeTestCases) Run(t *testing.T, acc Value, bak Value) {
+	node := NewExecutionNode()
+
+	for _, c := range cases {
+		if i, err := node.LoadCode(c.ins); err != nil {
+			t.Fatalf("LoadCode failed at instruction %d: %v", i, err)
+		}
+
+		node.Acc = acc
+		node.Backup = bak
+
+		if c.ports != nil {
+			node.LoadPorts(c.ports)
+		}
+
+		err := node.Step()
+		if err != nil {
+			t.Fatalf("Step failed: %v", err)
+		}
+
+		if node.Acc != c.acc {
+			t.Errorf("Instruction failed: expect Acc %d, got %d", c.acc, node.Acc)
+		}
+
+		if node.Backup != c.bak {
+			t.Errorf("Instruction failed: expect Backup %d, got %d", c.bak, node.Backup)
+		}
+
+		if node.Mode != c.mode {
+			t.Errorf("Instruction failed: expect Mode %v, got %v", c.mode, node.Mode)
+		}
+
+		if c.ports != nil {
+			got := node.Snapshot()
+			if !slices.Equal(got, c.portsValue) {
+				t.Errorf("Instruction failed: ports not as expected")
+				t.Errorf("expect: %v", c.portsValue)
+				t.Errorf("got: %v", got)
+			}
+		}
+	}
+}
+
 func noPortsData() []IOPort {
 	ports := []IOPort{
 		NewValuePort(),
@@ -155,11 +200,22 @@ func TestExecutionNodeLoadCode(t *testing.T) {
 	}
 }
 
+func TestExecutionNodeOpNop(t *testing.T) {
+	defaultAcc := Value(13)
+	exeNodeTestCases{
+		{
+			ins:  "NOP",
+			acc:  defaultAcc,
+			bak:  0,
+			mode: ModeIdle,
+		},
+	}.Run(t, defaultAcc, 0)
+}
+
 func TestExecutionNodeOpMovBasicIO(t *testing.T) {
-	node := NewExecutionNode()
 	defaultAcc := Value(13)
 
-	cases := []exeNodeTestCase{
+	exeNodeTestCases{
 		{
 			ins:  "MOV 42, ACC",
 			acc:  42,
@@ -231,52 +287,13 @@ func TestExecutionNodeOpMovBasicIO(t *testing.T) {
 			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
-	}
-
-	for _, c := range cases {
-		if i, err := node.LoadCode(c.ins); err != nil {
-			t.Fatalf("LoadCode failed at instruction %d: %v", i, err)
-		}
-
-		node.Acc = defaultAcc
-
-		if c.ports != nil {
-			node.LoadPorts(c.ports)
-		}
-
-		err := node.Step()
-		if err != nil {
-			t.Fatalf("Step failed: %v", err)
-		}
-
-		if node.Acc != c.acc {
-			t.Errorf("MOV instruction failed: expect Acc %d, got %d", c.acc, node.Acc)
-		}
-
-		if node.Backup != c.bak {
-			t.Errorf("MOV instruction failed: expect Backup %d, got %d", c.bak, node.Backup)
-		}
-
-		if node.Mode != c.mode {
-			t.Errorf("MOV instruction failed: expect Mode %v, got %v", c.mode, node.Mode)
-		}
-
-		if c.ports != nil {
-			got := node.Snapshot()
-			if !slices.Equal(got, c.portsValue) {
-				t.Errorf("MOV instruction failed: ports not as expected")
-				t.Errorf("expect: %v", c.portsValue)
-				t.Errorf("got: %v", got)
-			}
-		}
-	}
+	}.Run(t, defaultAcc, 0)
 }
 
 func TestExecutionNodeOpMovBlocking(t *testing.T) {
-	node := NewExecutionNode()
 	defaultAcc := Value(13)
 
-	cases := []exeNodeTestCase{
+	exeNodeTestCases{
 		{
 			ins:        "MOV UP, ACC",
 			acc:        13,
@@ -341,43 +358,96 @@ func TestExecutionNodeOpMovBlocking(t *testing.T) {
 			ports:      portsWithData(3, 5, 7, 11),
 			portsValue: []Value{3, 5, 7, 11},
 		},
-	}
+	}.Run(t, defaultAcc, 0)
+}
 
-	for _, c := range cases {
-		if i, err := node.LoadCode(c.ins); err != nil {
-			t.Fatalf("LoadCode failed at instruction %d: %v", i, err)
-		}
+func TestExecutionNodeOpSwp(t *testing.T) {
+	defaultAcc := Value(13)
+	defaultBak := Value(17)
 
-		node.Acc = defaultAcc
+	exeNodeTestCases{
+		{
+			ins:  "SWP",
+			acc:  defaultBak,
+			bak:  defaultAcc,
+			mode: ModeIdle,
+		},
+	}.Run(t, defaultAcc, defaultBak)
+}
 
-		if c.ports != nil {
-			node.LoadPorts(c.ports)
-		}
+func TestExecutionNodeOpSav(t *testing.T) {
+	defaultAcc := Value(13)
+	defaultBak := Value(17)
 
-		err := node.Step()
-		if err != nil {
-			t.Fatalf("Step failed: %v", err)
-		}
+	exeNodeTestCases{
+		{
+			ins:  "SAV",
+			acc:  defaultAcc,
+			bak:  defaultAcc,
+			mode: ModeIdle,
+		},
+	}.Run(t, defaultAcc, defaultBak)
+}
 
-		if node.Acc != c.acc {
-			t.Errorf("MOV instruction failed: expect Acc %d, got %d", c.acc, node.Acc)
-		}
+func TestExecutionNodeOpAdd(t *testing.T) {
+	defaultAcc := Value(13)
 
-		if node.Backup != c.bak {
-			t.Errorf("MOV instruction failed: expect Backup %d, got %d", c.bak, node.Backup)
-		}
+	exeNodeTestCases{
+		{
+			ins:  "ADD 42",
+			acc:  defaultAcc + 42,
+			bak:  0,
+			mode: ModeIdle,
+		},
+		{
+			ins:  "ADD 990",
+			acc:  ValueMax,
+			bak:  0,
+			mode: ModeIdle,
+		},
+		{
+			ins:  "ADD -42",
+			acc:  defaultAcc - 42,
+			bak:  0,
+			mode: ModeIdle,
+		},
+	}.Run(t, defaultAcc, 0)
+}
 
-		if node.Mode != c.mode {
-			t.Errorf("MOV instruction failed: expect Mode %v, got %v", c.mode, node.Mode)
-		}
+func TestExecutionNodeOpSub(t *testing.T) {
+	defaultAcc := Value(-13)
 
-		if c.ports != nil {
-			got := node.Snapshot()
-			if !slices.Equal(got, c.portsValue) {
-				t.Errorf("MOV instruction failed: ports not as expected")
-				t.Errorf("expect: %v", c.portsValue)
-				t.Errorf("got: %v", got)
-			}
-		}
-	}
+	exeNodeTestCases{
+		{
+			ins:  "SUB 42",
+			acc:  defaultAcc - 42,
+			bak:  0,
+			mode: ModeIdle,
+		},
+		{
+			ins:  "SUB 990",
+			acc:  ValueMin,
+			bak:  0,
+			mode: ModeIdle,
+		},
+		{
+			ins:  "SUB -42",
+			acc:  defaultAcc + 42,
+			bak:  0,
+			mode: ModeIdle,
+		},
+	}.Run(t, defaultAcc, 0)
+}
+
+func TestExecutionNodeOpNeg(t *testing.T) {
+	defaultAcc := Value(13)
+
+	exeNodeTestCases{
+		{
+			ins:  "NEG",
+			acc:  -defaultAcc,
+			bak:  0,
+			mode: ModeIdle,
+		},
+	}.Run(t, defaultAcc, 0)
 }

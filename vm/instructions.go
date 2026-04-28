@@ -54,10 +54,12 @@ const (
 	RegisterAny
 	RegisterLast
 
-	InvalidOpCode       = OpInvalid
-	InvalidOpcodeName   = "INVALID"
-	InvalidRegister     = RegisterInvalid
-	InvalidRegisterName = "INVALID"
+	ValueMax            Value = 999
+	ValueMin            Value = -999
+	InvalidOpCode             = OpInvalid
+	InvalidOpcodeName         = "INVALID"
+	InvalidRegister           = RegisterInvalid
+	InvalidRegisterName       = "INVALID"
 )
 
 var (
@@ -209,6 +211,18 @@ func (l Value) Equal(o Oprand) bool {
 
 func (l Value) InStandardRange() bool {
 	return l >= -999 && l <= 999
+}
+
+func (l Value) Limit() Value {
+	if l > ValueMax {
+		return ValueMax
+	}
+
+	if l < ValueMin {
+		return ValueMin
+	}
+
+	return l
 }
 
 type Context struct {

@@ -259,6 +259,8 @@ func (n *BasicExecutionNode) Step() error {
 func (n *BasicExecutionNode) RunInst(inst Instruction) error {
 	switch inst.Opcode {
 	case OpNOP:
+		// Do nothing
+
 	case OpMOV:
 		o1, ok := n.FetchValue(inst.Oprand1)
 		if !ok {
@@ -271,6 +273,34 @@ func (n *BasicExecutionNode) RunInst(inst Instruction) error {
 			n.Mode = ModeWrite
 			break
 		}
+
+	case OpSWP:
+		n.Acc, n.Backup = n.Backup, n.Acc
+
+	case OpSAV:
+		n.Backup = n.Acc
+
+	case OpADD:
+		o1, ok := n.FetchValue(inst.Oprand1)
+		if !ok {
+			n.Mode = ModeRead
+			break
+		}
+
+		n.Acc = (n.Acc + o1).Limit()
+
+	case OpSUB:
+		o1, ok := n.FetchValue(inst.Oprand1)
+		if !ok {
+			n.Mode = ModeRead
+			break
+		}
+
+		n.Acc = (n.Acc - o1).Limit()
+
+	case OpNEG:
+		n.Acc = -n.Acc
+
 	}
 
 	n.IP += 1
