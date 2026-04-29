@@ -137,11 +137,11 @@ func NewIOPortEnd(in IOPort, out IOPort) *IOPortEnd {
 }
 
 func (e *IOPortEnd) Value() Value {
-	return e.out.Value()
+	return e.in.Value()
 }
 
 func (e *IOPortEnd) Mode() IOMode {
-	return e.out.Mode()
+	return e.in.Mode()
 }
 
 func (e *IOPortEnd) Read() (Value, bool) {
@@ -164,7 +164,7 @@ type IOPipe struct {
 func NewOneWayPipe() *IOPipe {
 	p := &IOPipe{
 		p1: NewValuePort(),
-		p2: NilPort,
+		p2: InvalidPort,
 	}
 
 	return p

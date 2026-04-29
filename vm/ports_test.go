@@ -6,10 +6,20 @@ import (
 
 func TestBlockPort(t *testing.T) {
 	for i := range Value(100) {
+		if InvalidPort.Mode() != IOModeBusy {
+			t.Errorf("InvalidPort should always be in Busy mode")
+		}
+
+		if InvalidPort.Value() != Value(0) {
+			t.Errorf("InvalidPort should always return 0 for Value(), got %d", InvalidPort.Value())
+		}
+
 		ok := InvalidPort.Write(i)
 		if ok {
 			t.Errorf("InvalidPort should always reject write")
 		}
+
+		InvalidPort.WriteDone()
 
 		v, ok := InvalidPort.Read()
 		if ok {
@@ -24,10 +34,20 @@ func TestBlockPort(t *testing.T) {
 
 func TestNilPort(t *testing.T) {
 	for i := range Value(100) {
+		if NilPort.Mode() != IOModeReady {
+			t.Errorf("NilPort should always be in Ready mode")
+		}
+
+		if NilPort.Value() != Value(0) {
+			t.Errorf("NilPort should always return 0 for Value(), got %d", NilPort.Value())
+		}
+
 		ok := NilPort.Write(i)
 		if !ok {
 			t.Errorf("NilPort should always accept write")
 		}
+
+		NilPort.WriteDone()
 
 		v, ok := NilPort.Read()
 		if !ok {
@@ -43,6 +63,10 @@ func TestNilPort(t *testing.T) {
 func TestValuePort(t *testing.T) {
 	p := NewValuePort()
 
+	if p.Mode() != IOModeIdle {
+		t.Errorf("ValuePort should be in Idle mode when created")
+	}
+
 	// Read empty port
 	v, ok := p.Read()
 	if ok {
@@ -53,6 +77,10 @@ func TestValuePort(t *testing.T) {
 		t.Errorf("ValuePort should return 0 for read when idle, got %d", v)
 	}
 
+	if p.Mode() != IOModeIdle {
+		t.Errorf("ValuePort should remain in Idle mode after read when idle")
+	}
+
 	// Write to port
 	ok = p.Write(42)
 	if !ok {
@@ -61,6 +89,10 @@ func TestValuePort(t *testing.T) {
 
 	if p.Value() != 42 {
 		t.Errorf("ValuePort should store the written value, expect 42, got %d", p.Value())
+	}
+
+	if p.Mode() != IOModeBusy {
+		t.Errorf("ValuePort should be in Busy mode after write")
 	}
 
 	// write to busy port
@@ -80,6 +112,10 @@ func TestValuePort(t *testing.T) {
 	}
 
 	p.WriteDone()
+
+	if p.Mode() != IOModeReady {
+		t.Errorf("ValuePort should be in Ready mode after WriteDone")
+	}
 
 	// Read from ready port
 	v, ok = p.Read()

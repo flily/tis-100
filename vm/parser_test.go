@@ -609,6 +609,19 @@ func TestParseCodeError(t *testing.T) {
 		t.Fatalf("ParseCode() expected error at line 1, got line %d and error:\n%s", n, err)
 	}
 
+	syntaxErr, ok := err.(*SyntaxError)
+	if !ok {
+		t.Fatalf("ParseCode() expected SyntaxError, got %T", err)
+	}
+
+	if syntaxErr.Line() != 1 {
+		t.Fatalf("ParseCode() expected error at line 1, got line %d", syntaxErr.Line())
+	}
+
+	if start, end := syntaxErr.Position(); start != 6 || end != 8 {
+		t.Fatalf("ParseCode() expected error position (6, 8), got (%d, %d)", start, end)
+	}
+
 	if got != nil {
 		t.Fatalf("ParseCode() expected nil, got %v", got)
 	}

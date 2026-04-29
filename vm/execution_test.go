@@ -169,6 +169,10 @@ func TestExecutionNodeLoadCode(t *testing.T) {
 		t.Errorf("LoadCode failed at instruction %d: %v", i, err)
 	}
 
+	if node.Type() != NodeTypeT21 {
+		t.Errorf("LoadCode failure: expect NodeTypeT21, got %v", node.Type())
+	}
+
 	expectedCodes := Code{
 		{
 			Opcode:  OpMOV,
@@ -510,6 +514,41 @@ func TestExecutionNodeOpAdd(t *testing.T) {
 			bak:  0,
 			mode: ModeIdle,
 		},
+		{
+			code:  "ADD UP",
+			acc:   defaultAcc + 3,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "ADD LEFT",
+			acc:   defaultAcc + 5,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "ADD RIGHT",
+			acc:   defaultAcc + 7,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "ADD DOWN",
+			acc:   defaultAcc + 11,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "ADD UP",
+			acc:   defaultAcc,
+			bak:   0,
+			mode:  ModeRead,
+			ports: noPortsData(),
+		},
 	}.Run(t, 0, defaultAcc, 0)
 }
 
@@ -534,6 +573,41 @@ func TestExecutionNodeOpSub(t *testing.T) {
 			acc:  defaultAcc + 42,
 			bak:  0,
 			mode: ModeIdle,
+		},
+		{
+			code:  "SUB UP",
+			acc:   defaultAcc - 3,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "SUB LEFT",
+			acc:   defaultAcc - 5,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "SUB RIGHT",
+			acc:   defaultAcc - 7,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "SUB DOWN",
+			acc:   defaultAcc - 11,
+			bak:   0,
+			mode:  ModeIdle,
+			ports: portsWithData(3, 5, 7, 11),
+		},
+		{
+			code:  "SUB UP",
+			acc:   defaultAcc,
+			bak:   0,
+			mode:  ModeRead,
+			ports: noPortsData(),
 		},
 	}.Run(t, 0, defaultAcc, 0)
 }
@@ -896,4 +970,220 @@ func TestExecutionNodeOpJroRegister(t *testing.T) {
 			ports: noPortsData(),
 		},
 	}.Run(t, 2, 2, 0)
+}
+
+func TestLoadCodeError(t *testing.T) {
+	node := NewExecutionNode()
+	i, err := node.LoadCode("INVALIDOPCODE")
+	if err == nil {
+		t.Errorf("LoadCode should return error for invalid opcode")
+	}
+	_ = i
+}
+
+func TestLoadLabelsDuplicate(t *testing.T) {
+	node := NewExecutionNode()
+	code := codeLines(
+		"LAB1: NOP",
+		"LAB1: NOP",
+	)
+	i, err := node.LoadCode(code)
+	if err == nil {
+		t.Errorf("LoadCode should return error for duplicate label")
+	}
+	if i != 1 {
+		t.Errorf("LoadCode should return line 1 for duplicate label, got %d", i)
+	}
+}
+
+func TestLoadLabelsUndefined(t *testing.T) {
+	node := NewExecutionNode()
+	code := "JMP UNDEFINED"
+	_, err := node.LoadCode(code)
+	if err == nil {
+		t.Errorf("LoadCode should return error for undefined label")
+	}
+}
+
+func TestFetchValueFromRegisterDefault(t *testing.T) {
+	node := NewExecutionNode()
+	v, ok := node.FetchValueFromRegister(Register(999))
+	if ok {
+		t.Errorf("FetchValueFromRegister with invalid register should return false")
+	}
+	if v != Value(0) {
+		t.Errorf("FetchValueFromRegister with invalid register should return 0, got %d", v)
+	}
+}
+
+func TestFetchValueFromRegisterNil(t *testing.T) {
+	node := NewExecutionNode()
+	v, ok := node.FetchValueFromRegister(RegisterNil)
+	if !ok {
+		t.Errorf("FetchValueFromRegister with RegisterNil should return true")
+	}
+	if v != Value(0) {
+		t.Errorf("FetchValueFromRegister with RegisterNil should return 0, got %d", v)
+	}
+}
+
+func TestFetchValueFromRegisterLast(t *testing.T) {
+	node := NewExecutionNode()
+	ports := []IOPort{
+		NewValuePortWithValue(99),
+		NewValuePortWithValue(0),
+		NewValuePortWithValue(0),
+		NewValuePortWithValue(0),
+	}
+	node.LoadPorts(ports)
+	// Set Last to RegisterUp by reading any port
+	node.ReadAny()
+	v, ok := node.FetchValueFromRegister(RegisterLast)
+	// After ReadAny, Last should be set to a port; but that port was read so it's now empty
+	_ = ok
+	_ = v
+}
+
+func TestWriteValueDefault(t *testing.T) {
+	node := NewExecutionNode()
+	ok := node.WriteValue(Register(999), 42)
+	if ok {
+		t.Errorf("WriteValue with invalid register should return false")
+	}
+}
+
+func TestWriteValueNil(t *testing.T) {
+	node := NewExecutionNode()
+	ok := node.WriteValue(RegisterNil, 42)
+	if !ok {
+		t.Errorf("WriteValue with RegisterNil should return true")
+	}
+}
+
+func TestPrevIPLooped(t *testing.T) {
+	node := NewExecutionNode()
+	code := codeLines(
+		"NOP",
+		"NOP",
+		"NOP",
+	)
+	if _, err := node.LoadCode(code); err != nil {
+		t.Fatalf("LoadCode failed: %v", err)
+	}
+
+	node.IP = 0
+	_, looped := node.prevIP()
+	if !looped {
+		t.Errorf("prevIP at start should loop around")
+	}
+}
+
+func TestReadPortDefault(t *testing.T) {
+	ports := NewNodePorts()
+	ports.Ports = [4]IOPort{
+		NewValuePortWithValue(1),
+		NewValuePortWithValue(2),
+		NewValuePortWithValue(3),
+		NewValuePortWithValue(4),
+	}
+
+	v, ok := ports.ReadPort(Register(999))
+	if ok {
+		t.Errorf("ReadPort with invalid register should return false")
+	}
+	if v != Value(0) {
+		t.Errorf("ReadPort with invalid register should return 0, got %d", v)
+	}
+}
+
+func TestWritePortDefault(t *testing.T) {
+	ports := NewNodePorts()
+	ports.Ports = [4]IOPort{
+		NewValuePort(),
+		NewValuePort(),
+		NewValuePort(),
+		NewValuePort(),
+	}
+
+	ok := ports.WritePort(Register(999), 42)
+	if ok {
+		t.Errorf("WritePort with invalid register should return false")
+	}
+}
+
+func TestReadAnyEmpty(t *testing.T) {
+	ports := NewNodePorts()
+	ports.Ports = [4]IOPort{
+		NewValuePort(),
+		NewValuePort(),
+		NewValuePort(),
+		NewValuePort(),
+	}
+
+	v, ok := ports.ReadAny()
+	if ok {
+		t.Errorf("ReadAny on empty ports should return false")
+	}
+	if v != Value(0) {
+		t.Errorf("ReadAny on empty ports should return 0, got %d", v)
+	}
+}
+
+func TestWriteAnyFull(t *testing.T) {
+	ports := NewNodePorts()
+	ports.Ports = [4]IOPort{
+		NewValuePortWithValue(1),
+		NewValuePortWithValue(2),
+		NewValuePortWithValue(3),
+		NewValuePortWithValue(4),
+	}
+	// Mark all as Busy (not Idle) — write again to ports already in Ready state
+	// Actually ValuePortWithValue puts them in IOModeReady, which is not Idle, so Write returns false
+	ok := ports.WriteAny(99)
+	if ok {
+		t.Errorf("WriteAny on full ports should return false")
+	}
+}
+
+func TestMovNil(t *testing.T) {
+	exeNodeTestCases{
+		{
+			code: "MOV ACC, NIL",
+			acc:  13,
+			bak:  0,
+			mode: ModeIdle,
+		},
+		{
+			code: "MOV NIL, ACC",
+			acc:  0,
+			bak:  0,
+			mode: ModeIdle,
+		},
+	}.Run(t, 0, 13, 0)
+}
+
+func TestFetchValueDefault(t *testing.T) {
+	node := NewExecutionNode()
+	// Label has OprandType() == OprandLabel which falls to the default case
+	v, ok := node.FetchValue(NewLabel("TEST"))
+	if ok {
+		t.Errorf("FetchValue with Label operand should return false")
+	}
+	if v != Value(0) {
+		t.Errorf("FetchValue with Label operand should return 0, got %d", v)
+	}
+}
+
+func TestPrevIPOnAllEmptyCode(t *testing.T) {
+	// A code with only empty instructions triggers the "Empty code segment" path
+	node := &BasicExecutionNode{
+		NodePorts: *NewNodePorts(),
+		Codes: Code{
+			{Opcode: OpEmpty},
+			{Opcode: OpEmpty},
+		},
+		IP: 0,
+	}
+	node.labels = make(map[Label]int)
+	_, _ = node.prevIP()
 }

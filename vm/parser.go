@@ -175,15 +175,13 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) err
 	return nil
 }
 
-func ParseInstruction(line []rune) (Instruction, error) {
-	base := NewContext(line)
-
+func parseInstruction(ctx *Context, line []rune) (Instruction, error) {
 	ins := &Instruction{
 		Opcode: OpEmpty,
 	}
 
 	i := skipSpace(line, ins, 0)
-	err := parseOpcode(line, ins, base, i)
+	err := parseOpcode(line, ins, ctx, i)
 	if err != nil {
 		return InvalidInstruction, err
 	}
@@ -191,12 +189,19 @@ func ParseInstruction(line []rune) (Instruction, error) {
 	return *ins, nil
 }
 
+func ParseInstruction(line []rune) (Instruction, error) {
+	ctx := NewContext(line, 0)
+	return parseInstruction(ctx, line)
+}
+
 func ParseCode(code string) (Code, int, error) {
 	lines := strings.Split(code, "\n")
 	instructions := make(Code, 0, len(lines))
 
 	for i, line := range lines {
-		ins, err := ParseInstruction([]rune(line))
+		ctx := NewContext([]rune(line), i)
+
+		ins, err := parseInstruction(ctx, []rune(line))
 		if err != nil {
 			return nil, i, err
 		}

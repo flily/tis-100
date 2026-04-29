@@ -250,7 +250,7 @@ func TestLiteralEqual(t *testing.T) {
 
 func TestContextMarkAndMessage(t *testing.T) {
 	content := []rune("LOREM IPSUM DOLOR SIT AMET")
-	base := NewContext(content)
+	base := NewContext(content, 0)
 
 	ctx := base.Mark(12, 17)
 	message := ctx.Message("consectetur adipiscing elit")
@@ -262,6 +262,52 @@ func TestContextMarkAndMessage(t *testing.T) {
 
 	if message != expect {
 		t.Errorf("Context Message: expect:\n%s\ngot:\n%s", expect, message)
+	}
+}
+
+func TestInstructionEqual(t *testing.T) {
+	// code := "LAB: MOV ACC, UP   # LOREM"
+	code := "LAB: MOV ACC, UP"
+	sample, err := ParseInstruction([]rune(code))
+	if err != nil {
+		t.Fatalf("Failed to parse instruction:\n%v", err)
+	}
+
+	cases := []struct {
+		inst string
+		exp  bool
+	}{
+		{
+			inst: "LAB: MOV ACC, UP",
+			exp:  true,
+		},
+		{
+			inst: "LABL: MOV ACC, UP",
+			exp:  false,
+		},
+		{
+			inst: "!LAB: MOV ACC, UP",
+			exp:  false,
+		},
+		{
+			inst: "LAB: MOV LEFT, UP",
+			exp:  false,
+		},
+		{
+			inst: "LAB: MOV ACC, DOWN",
+			exp:  false,
+		},
+	}
+
+	for i, c := range cases {
+		inst, err := ParseInstruction([]rune(c.inst))
+		if err != nil {
+			t.Fatalf("Failed to parse instruction '%s':\n%v", c.inst, err)
+		}
+
+		if inst.Equals(sample) != c.exp {
+			t.Errorf("Instruction Equal [%d]: %v expect %t, got %t", i, c.inst, c.exp, inst.Equals(sample))
+		}
 	}
 }
 
@@ -303,5 +349,16 @@ func TestCodeEquals(t *testing.T) {
 
 	if code1.Equals(code4) {
 		t.Errorf("Code1 should not be equal to Code4")
+	}
+}
+
+func TestCodeFirstAndLast(t *testing.T) {
+	empty, _, _ := ParseCode("")
+	if empty.First() != -1 || empty.Last() != -1 {
+		t.Errorf("Empty code: expect First() and Last() to return -1, got %d and %d", empty.First(), empty.Last())
+	}
+
+	if empty.Count() != 0 {
+		t.Errorf("Empty code: expect Count() to return 0, got %d", empty.Count())
 	}
 }

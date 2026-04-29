@@ -271,11 +271,12 @@ func (n *BasicExecutionNode) nextIP() (Instruction, bool) {
 
 func (n *BasicExecutionNode) prevIP() (Instruction, bool) {
 	looped := false
-	last := n.Codes.Last()
-	for range last {
+	first := n.Codes.First()
+	count := n.Codes.Count()
+	for range count {
 		n.IP = n.IP - 1
-		if n.IP < 0 {
-			n.IP = last
+		if n.IP < first {
+			n.IP = first
 			looped = true
 		}
 

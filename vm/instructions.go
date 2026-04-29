@@ -243,8 +243,8 @@ func newContext(content []rune, start int, end int, line int) *Context {
 	return c
 }
 
-func NewContext(content []rune) *Context {
-	return newContext(content, 0, len(content), -1)
+func NewContext(content []rune, line int) *Context {
+	return newContext(content, 0, len(content), line)
 }
 
 func (c *Context) Mark(start int, end int) *Context {
@@ -296,11 +296,11 @@ func (i *Instruction) Equals(o Instruction) bool {
 		return false
 	}
 
-	if i.Opcode != o.Opcode || i.Breakpoint != o.Breakpoint || i.Comment != o.Comment {
+	if i.Label != o.Label {
 		return false
 	}
 
-	if (i.Oprand1 == nil) != (o.Oprand1 == nil) || (i.Oprand2 == nil) != (o.Oprand2 == nil) {
+	if i.Opcode != o.Opcode || i.Breakpoint != o.Breakpoint || i.Comment != o.Comment {
 		return false
 	}
 
@@ -369,21 +369,36 @@ func (c Code) Equals(o Code) bool {
 }
 
 func (c Code) First() int {
+	r := -1
 	for i, ins := range c {
 		if !ins.Empty() {
-			return i
+			r = i
+			break
 		}
 	}
 
-	return -1
+	return r
 }
 
 func (c Code) Last() int {
+	r := -1
 	for i := len(c) - 1; i >= 0; i-- {
 		if !c[i].Empty() {
-			return i
+			r = i
+			break
 		}
 	}
 
-	return -1
+	return r
+}
+
+func (c Code) Count() int {
+	count := 0
+	for _, ins := range c {
+		if !ins.Empty() {
+			count++
+		}
+	}
+
+	return count
 }
