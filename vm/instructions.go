@@ -251,10 +251,6 @@ func (c *Context) Mark(start int, end int) *Context {
 	return newContext(c.Raw, start, end, c.Line)
 }
 
-func (c *Context) MarkAll() *Context {
-	return newContext(c.Raw, 0, len(c.Raw), c.Line)
-}
-
 func (c *Context) Message(message string) string {
 	leadSpace := strings.Repeat(" ", c.Start)
 	lines := []string{

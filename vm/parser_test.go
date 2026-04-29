@@ -292,6 +292,107 @@ func TestParseInstructionWithBreakpointInInstruction1Label(t *testing.T) {
 	}
 }
 
+func TestParseInstructionWithCommentAndOnlyLabel(t *testing.T) {
+	codes := []string{
+		"LOOP: #LOREM IPSUM",
+		"LOOP:#LOREM IPSUM",
+	}
+	exp := Instruction{
+		Label:   "LOOP",
+		Opcode:  OpEmpty,
+		Comment: "LOREM IPSUM",
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithCommentAndInstruction(t *testing.T) {
+	codes := []string{
+		"NOP #LOREM IPSUM",
+		"NOP#LOREM IPSUM",
+	}
+
+	exp := Instruction{
+		Opcode:  OpNOP,
+		Comment: "LOREM IPSUM",
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithCommentAndInstructionAndLabel(t *testing.T) {
+	codes := []string{
+		"LOOP: NOP #LOREM IPSUM",
+		"LOOP: NOP#LOREM IPSUM",
+	}
+
+	exp := Instruction{
+		Label:   "LOOP",
+		Opcode:  OpNOP,
+		Comment: "LOREM IPSUM",
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithCommentAndBreakpoint(t *testing.T) {
+	codes := []string{
+		"!NOP #LOREM IPSUM",
+		"NOP! #LOREM IPSUM",
+		"NOP !#LOREM IPSUM",
+	}
+
+	exp := Instruction{
+		Breakpoint: true,
+		Opcode:     OpNOP,
+		Comment:    "LOREM IPSUM",
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithCommentOprand1Literal(t *testing.T) {
+	codes := []string{
+		"ADD 42 #LOREM IPSUM",
+		"ADD 42#LOREM IPSUM",
+	}
+
+	exp := Instruction{
+		Opcode:  OpADD,
+		Oprand1: Value(42),
+		Comment: "LOREM IPSUM",
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
+func TestParseInstructionWithCommentOprand1Register(t *testing.T) {
+	codes := []string{
+		"ADD ACC #LOREM IPSUM",
+		"ADD ACC#LOREM IPSUM",
+	}
+
+	exp := Instruction{
+		Opcode:  OpADD,
+		Oprand1: RegisterAcc,
+		Comment: "LOREM IPSUM",
+	}
+
+	for _, code := range codes {
+		checkParseInstructionSuccess(t, code, exp)
+	}
+}
+
 func TestParseInstructionErrorWithInvalidOpcode1(t *testing.T) {
 	code := "LOREM IPSUM"
 	errMessage := []string{
@@ -396,6 +497,39 @@ func TestParseInstructionErrorWithMissingOperand2(t *testing.T) {
 	errMessage := []string{
 		"MOV ACC",
 		"^^^^^^^",
+		"MISSING OPERAND",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMissingOperand2Comment(t *testing.T) {
+	code := "MOV ACC # LOREM"
+	errMessage := []string{
+		"MOV ACC # LOREM",
+		"^^^^^^^^",
+		"MISSING OPERAND",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMissingOperand2WithLabel(t *testing.T) {
+	code := "LAB: MOV ACC"
+	errMessage := []string{
+		"LAB: MOV ACC",
+		"^^^^^^^^^^^^",
+		"MISSING OPERAND",
+	}
+
+	checkParseInstructionError(t, code, errMessage)
+}
+
+func TestParseInstructionErrorWithMissingOperand2WithLabelAndComment(t *testing.T) {
+	code := "LAB: MOV ACC  # LOREM"
+	errMessage := []string{
+		"LAB: MOV ACC  # LOREM",
+		"^^^^^^^^^^^^^^",
 		"MISSING OPERAND",
 	}
 

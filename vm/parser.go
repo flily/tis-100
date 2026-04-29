@@ -8,6 +8,7 @@ import "strings"
 const (
 	CharBreakpoint = '!'
 	CharLabel      = ':'
+	CharComment    = '#'
 
 	errFormatInvalidOpcode     = `INVALID OPCODE "%s"`
 	errFormatInvalidExpression = `INVALID EXPRESSION "%s"`
@@ -66,7 +67,7 @@ func parseOprand(content []rune, ins *Instruction, base *Context, start int, typ
 	ctx := base.Mark(start, i)
 
 	if len(oprandStr) <= 0 {
-		err := base.MarkAll().Error(errFormatMissingOperand)
+		err := base.Mark(0, len(content)).Error(errFormatMissingOperand)
 		return nil, nil, i, err
 	}
 
@@ -93,12 +94,16 @@ func parseOprand(content []rune, ins *Instruction, base *Context, start int, typ
 	}
 }
 
-func parseOpcode(content []rune, ins *Instruction, base *Context, start int) error {
+func parseInstruction(content []rune, ins *Instruction, base *Context, start int) error {
 	i := start
 	leadingSpace := false
+
+	// Parse label and opcode
 	for i < len(content) {
 		c := content[i]
 		if c == CharLabel {
+			// LAB: OP  OPR1, OPR2  # COMMENT
+			//    ^
 			labelString := string(content[start:i])
 			labelCtx := base.Mark(start, i)
 			ins.SetLabel(labelString, labelCtx)
@@ -175,13 +180,24 @@ func parseOpcode(content []rune, ins *Instruction, base *Context, start int) err
 	return nil
 }
 
-func parseInstruction(ctx *Context, line []rune) (Instruction, error) {
+func parseComment(content []rune, ins *Instruction, start int) []rune {
+	for i := start; i < len(content); i++ {
+		if content[i] == CharComment {
+			ins.Comment = string(content[i+1:])
+			return content[:i]
+		}
+	}
+	return content
+}
+
+func parseContent(ctx *Context, line []rune) (Instruction, error) {
 	ins := &Instruction{
 		Opcode: OpEmpty,
 	}
 
 	i := skipSpace(line, ins, 0)
-	err := parseOpcode(line, ins, ctx, i)
+	content := parseComment(line, ins, i)
+	err := parseInstruction(content, ins, ctx, i)
 	if err != nil {
 		return InvalidInstruction, err
 	}
@@ -191,7 +207,7 @@ func parseInstruction(ctx *Context, line []rune) (Instruction, error) {
 
 func ParseInstruction(line []rune) (Instruction, error) {
 	ctx := NewContext(line, 0)
-	return parseInstruction(ctx, line)
+	return parseContent(ctx, line)
 }
 
 func ParseCode(code string) (Code, int, error) {
@@ -201,7 +217,7 @@ func ParseCode(code string) (Code, int, error) {
 	for i, line := range lines {
 		ctx := NewContext([]rune(line), i)
 
-		ins, err := parseInstruction(ctx, []rune(line))
+		ins, err := parseContent(ctx, []rune(line))
 		if err != nil {
 			return nil, i, err
 		}
